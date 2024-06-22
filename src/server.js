@@ -6,13 +6,15 @@ import {
   whatsapp,
   sendDocument,
   mainMenu,
-  radioButtons,
+  sendRadioButtons,
   sendImage,
   purchaseButtons,
   eventFallback,
   ticketTypeButton,
   paymentMethodButtons,
   paymentNumberButtons,
+  sendButtons,
+  sendLocation,
 } from './services/whatasapp/whatsapp.js';
 // import { processMessage } from './services/nlp/intents.js';
 import { getUserState, setUserState } from './config/state.js';
@@ -26,11 +28,12 @@ import {
   ticketCheckIn,
   checkTicketByQRCode,
   getTicketByPhone,
+  getEventCategories,
+  getEventsByCategory,
 } from './utils/api.js';
 import dotenv from 'dotenv';
 import { processPayment } from './utils/payment.js';
 dotenv.config();
-import { generateTicket } from './utils/ticket.js';
 
 const app = express();
 app.use(bodyParser.json());
@@ -114,9 +117,18 @@ app.post('/webhook', async (req, res) => {
         case 'choose_option':
           if (messageType == 'simple_button_message') {
             if (buttonId === '_find_event') {
-              replyText =
-                'Please enter the name or type of event you are interested in:';
-              await sendMessage(userId, replyText);
+              replyText = 'Choose how you would like to find an event:';
+              const listButtons = [
+                {
+                  title: 'Find by search',
+                  id: '_event_by_search',
+                },
+                {
+                  title: 'Find by category',
+                  id: '_event_by_category',
+                },
+              ];
+              await sendButtons(userId, replyText, listButtons);
               setUserState(userId, 'find_event');
             } else if (buttonId === '_event_by_category') {
               replyText =
@@ -124,14 +136,13 @@ app.post('/webhook', async (req, res) => {
               await sendMessage(userId, replyText);
               setUserState(userId, 'find_event_by_category');
             } else if (buttonId === '_view_resend_ticket') {
-
               const data = await getTicketByPhone(phone);
               const processedEventIds = new Set();
-              const headerText =  `SELECT EVENT 🎉🎉 🎉`;
+              const headerText = `SELECT EVENT 🎉🎉 🎉`;
               const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
-              const footerText =  'Powered by: Fundasec Security';
+              const footerText = 'Powered by: Fundasec Security';
               const actionTitle = 'Select an Event';
-              
+
               const eventsArray = [];
               if (data) {
                 for (const ticket of data.tickets) {
@@ -139,19 +150,38 @@ app.post('/webhook', async (req, res) => {
                     setUserState(userId, 'paynow');
                     const eventData = await getEvent(ticket.event_id);
                     if (eventData) {
-                      eventsArray.push({ event_id: ticket.event_id, title: eventData.event.title });
+                      eventsArray.push({
+                        event_id: ticket.event_id,
+                        title: eventData.event.title,
+                      });
                     }
                     processedEventIds.add(ticket.event_id);
                   }
                 }
-                await radioButtons(eventsArray, headerText, bodyText, footerText, actionTitle,  userId);
+                await sendRadioButtons(
+                  eventsArray,
+                  headerText,
+                  bodyText,
+                  footerText,
+                  actionTitle,
+                  userId
+                );
                 setUserState(userId, 'resend_ticket');
               } else {
                 replyText = 'Ticket(s) not found. Please try again.';
                 setUserState(userId, 'menu');
-                
               }
               // setUserState(userId, 'view_or_resend_tickets');
+            } else if (buttonId === '_utilities') {
+              replyText = 'Choose a utility option:';
+              const listButtons = [
+                {
+                  title: 'Event Location',
+                  id: '_event_location',
+                },
+              ];
+              await sendButtons(userId, replyText, listButtons);
+              setUserState(userId, 'utilities');
             }
           } else {
             replyText = 'Please choose an option from the menu.';
@@ -168,10 +198,10 @@ app.post('/webhook', async (req, res) => {
               for (const ticket of data.tickets) {
                 await sendDocument(
                   ticket.name_on_ticket,
-                `/Users/halfbae/dev/mukoto-bot/downloads/${ticket.name_on_ticket}.pdf`,
-                userId
+                  `/Users/halfbae/dev/mukoto-bot/downloads/${ticket.name_on_ticket}.pdf`,
+                  userId
                 );
-            }
+              }
             } else {
               replyText = 'Tickets not found. Please try again.';
               await sendMessage(userId, replyText);
@@ -187,19 +217,113 @@ app.post('/webhook', async (req, res) => {
           }
           break;
         case 'find_event':
+          if (messageType == 'simple_button_message') {
+            if (buttonId === '_event_by_search') {
+              replyText =
+                'Please enter the name or type of event you are interested in:';
+              await sendMessage(userId, replyText);
+              setUserState(userId, 'search_event');
+            } else {
+              const eventCategories = await getEventCategories();
+              if (eventCategories.length === 0) {
+                replyText =
+                  'No event categories found. Please try again later.';
+                await sendMessage(userId, replyText);
+                await mainMenu(userName, userId);
+                setUserState(userId, 'choose_option');
+              } else {
+                const headerText = `SELECT CATEGORY 🎉🎉 🎉`;
+                const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the categories below:`;
+                const footerText = 'Powered by: Fundasec Security';
+                const actionTitle = 'Select a Category';
+                console.log(eventCategories);
+                await sendRadioButtons(
+                  eventCategories,
+                  headerText,
+                  bodyText,
+                  footerText,
+                  actionTitle,
+                  userId
+                );
+                setUserState(userId, 'find_event_by_category');
+              }
+            }
+          }
+          break;
+
+        case 'search_event':
           const events = await searchEvents(userMessage);
           if (!events) {
             replyText =
               'No events found for your search. Please try another query.';
-            await eventFallback(userId);
+            const listButtons = [
+              {
+                title: 'Yes',
+                id: '_find_event',
+              },
+              {
+                title: 'Main Menu',
+                id: '_main_menu',
+              },
+            ];
+            await sendButtons(userId, replyText, listButtons);
             setUserState(userId, 'event_fallback');
           } else {
-            const headerText =  `#Special Offers: 🎉🎉 🎉`;
+            const headerText = `#Special Offers: 🎉🎉 🎉`;
             const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
-            const footerText =  'Powered by: Fundasec Security';
+            const footerText = 'Powered by: Fundasec Security';
             const actionTitle = 'Select an Event';
-            await radioButtons(events, headerText, bodyText, footerText, actionTitle,  userId);
+            await sendRadioButtons(
+              events,
+              headerText,
+              bodyText,
+              footerText,
+              actionTitle,
+              userId
+            );
             setUserState(userId, 'show_event');
+          }
+          break;
+
+        case 'find_event_by_category':
+          if (messageType === 'radio_button_message') {
+            const events = await getEventsByCategory(selectionId);
+            if (events.length === 0) {
+              console.log({ events });
+              replyText =
+                'No events found for this category. Find another event?';
+              const listButtons = [
+                {
+                  title: 'Yes',
+                  id: '_find_event',
+                },
+                {
+                  title: 'Main Menu',
+                  id: '_main_menu',
+                },
+              ];
+              await sendButtons(userId, replyText, listButtons);
+              setUserState(userId, 'event_fallback');
+            } else {
+              console.log('dfsfs');
+              const headerText = `#Special Offers: 🎉🎉 🎉`;
+              const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
+              const footerText = 'Powered by: Fundasec Security';
+              const actionTitle = 'Select an Event';
+              await sendRadioButtons(
+                events,
+                headerText,
+                bodyText,
+                footerText,
+                actionTitle,
+                userId
+              );
+              setUserState(userId, 'show_event');
+            }
+          } else {
+            replyText = 'Please select a category from the list.';
+            await sendMessage(userId, replyText);
+            setUserState(userId, 'menu');
           }
           break;
 
@@ -221,6 +345,8 @@ app.post('/webhook', async (req, res) => {
               setUserState(userId, 'choose_option');
             }
             setUserState(userId, 'choosen_event_options');
+          } else {
+            setUserState(userId, 'menu');
           }
           break;
 
@@ -305,27 +431,6 @@ app.post('/webhook', async (req, res) => {
           await processPayment(session, userId);
           break;
 
-        case 'find_event_by_category':
-          const categoryEvents = await searchEvents(userMessage);
-          if (categoryEvents.length === 0) {
-            replyText =
-              'No events found for the specified category. Please try another category.';
-          } else {
-            replyText = 'Here are some events I found in this category:\n';
-            categoryEvents.slice(0, 5).forEach((event, index) => {
-              replyText += `${index + 1}. ${event.name.text} on ${event.start.local}\n`;
-            });
-          }
-          setUserState(userId, 'menu');
-          break;
-
-        case 'view_or_resend_tickets':
-          // Placeholder: Implement ticket lookup and resend logic here
-          replyText =
-            'This feature is under development. Please try again later.';
-          setUserState(userId, 'menu');
-          break;
-
         case 'event_fallback':
           if (messageType === 'simple_button_message') {
             if (buttonId === '_find_event') {
@@ -337,6 +442,70 @@ app.post('/webhook', async (req, res) => {
               await mainMenu(userName, userId);
               setUserState(userId, 'choose_option');
             }
+          }
+          break;
+
+        case 'utilities':
+          if (messageType === 'simple_button_message') {
+            const { tickets } = await getTicketByPhone(phone);
+            if (tickets.length == 0) {
+              replyText = 'You have no tickets to view event locations.';
+              await sendMessage(userId, replyText);
+              await mainMenu(userName, userId);
+              setUserState(userId, 'choose_option');
+            } else {
+              const headerText = `SELECT EVENT 🎉🎉 🎉`;
+              const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
+              const footerText = 'Powered by: Fundasec Security';
+              const actionTitle = 'Select an Event';
+              const events = [];
+              const processedEventIds = new Set();
+              for (const ticket of tickets) {
+                if (!processedEventIds.has(ticket.event_id)) {
+                  setUserState(userId, 'paynow');
+                  const eventData = await getEvent(ticket.event_id);
+                  if (eventData) {
+                    events.push({
+                      event_id: ticket.event_id,
+                      title: eventData.event.title,
+                    });
+                  }
+                  processedEventIds.add(ticket.event_id);
+                }
+              }
+              await sendRadioButtons(
+                events,
+                headerText,
+                bodyText,
+                footerText,
+                actionTitle,
+                userId
+              );
+              setUserState(userId, 'send_event_location');
+            }
+          } else {
+            replyText = 'Select a valid option. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'send_event_location':
+          if (messageType === 'radio_button_message') {
+            const {event} = await getEvent(selectionId);
+            console.log(event);
+            if (event) {
+              await sendLocation(userId, event.event_location.latitude, event.event_location.longitude, event.event_location.location, event.event_location.address);
+            } else {
+              replyText = 'Event not found. Please try again.';
+              await sendMessage(userId, replyText);
+              await mainMenu(userName, userId);
+              setUserState(userId, 'menu');
+            }
+          } else {
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
           }
           break;
 

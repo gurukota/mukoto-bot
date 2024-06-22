@@ -98,3 +98,21 @@ export const getTicketByPhone = async (phone) => {
     console.error(error);
   }
 };
+
+export const getEventsByCategory = async (category) => {
+  try {
+    const response = await apiClient.get(`/events/category/${category}`);
+    return response.data;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+export const getEventCategories = async () => {
+  try {
+    const response = await apiClient.get('/eventcategories');
+    return response.data;
+  } catch (error) {
+    console.error(error);
+  }
+}

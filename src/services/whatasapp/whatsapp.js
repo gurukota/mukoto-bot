@@ -1,5 +1,4 @@
 import WhatsAppCloudAPI from 'whatsappcloudapi_wrapper';
-import { userStates, getUserState, setUserState } from '../../config/state.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -19,7 +18,7 @@ const sendMessage = async (to, message) => {
 
 const mainMenu = async (username, userId) => {
   await whatsapp.sendSimpleButtons({
-    message: `Hey ${username}, I'm Mukoto 🤩, your personal event assistant. How can I help you today?`,
+    message: `Hey ${username}, I'm Mukoto 🤩, your personal event ticketing assistant. How can I help you today?`,
     recipientPhone: userId,
     listOfButtons: [
       {
@@ -27,8 +26,8 @@ const mainMenu = async (username, userId) => {
         id: '_find_event',
       },
       {
-        title: 'Event by category',
-        id: '_event_by_category',
+        title: 'Utilities',
+        id: '_utilities',
       },
       {
         title: 'View Ticket',
@@ -38,16 +37,16 @@ const mainMenu = async (username, userId) => {
   });
 };
 
-export const radioButtons = async (events, headerText, bodyText, footerText, actionTitle, userId) => {
+export const sendRadioButtons = async (events, headerText, bodyText, footerText, actionTitle, userId) => {
   const listOfSections = [
     {
       title: 'Hi there!',
       rows: events
         .map((event) => {
           return {
-            id: event.event_id,
-            title: event.title,
-            description: event.title,
+            id: event.event_id ?? event.category_id,
+            title: event.title ?? event.category_name,
+            description: event.title ?? event.category_name,
           };
         })
         .slice(0, 10),
@@ -127,6 +126,13 @@ const paymentMethodButtons = async (userId, replyText) => {
   });
 };
 
+export const sendButtons = async (userId, replyText, listOfButtons) => {
+  await whatsapp.sendSimpleButtons({
+    recipientPhone: userId,
+    message: replyText,
+    listOfButtons,
+  });
+};
 const paymentNumberButtons = async (userId, replyText) => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
@@ -195,6 +201,17 @@ const sendDocument = async (caption, filePath, userId) => {
     file_path: filePath,
   });
 };
+
+export const sendLocation = async (userId, latitude, longitude, name, address) => {
+  console.log(userId, latitude, longitude, name, address);
+  await whatsapp.sendLocation({
+    recipientPhone: userId,
+    latitude,
+    longitude,
+    name, 
+    address
+  });
+}
 
 export {
   sendMessage,
