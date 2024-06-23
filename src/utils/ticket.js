@@ -51,7 +51,6 @@ export const generateTicket = async(session, userId) => {
         });
 
         //add png to document 
-        console.log(session.event);
         const res = await fetch(session.event.image);
         const eventTemplateArrayBuffer = await res.arrayBuffer();
         const eventTemplateImage = await pdfDoc.embedJpg(eventTemplateArrayBuffer);

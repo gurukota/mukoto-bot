@@ -95,7 +95,7 @@ app.post('/webhook', async (req, res) => {
           }
           await sendMessage(userId, replyText);
         }
-        setUserState(userId, 'ticket_check_in');
+        setUserState(userId, 'menu');
       }
 
       // Initialize user state if not present
@@ -456,7 +456,7 @@ app.post('/webhook', async (req, res) => {
             } else {
               const headerText = `SELECT EVENT 🎉🎉 🎉`;
               const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
-              const footerText = 'Powered by: Fundasec Security';
+              const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select an Event';
               const events = [];
               const processedEventIds = new Set();
@@ -510,9 +510,6 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'paynow':
-          break;
-
-        case 'ticket_check_in':
           break;
 
         default:
