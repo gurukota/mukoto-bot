@@ -2,6 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { validate, version } from 'uuid';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   sendMessage,
   whatsapp,
@@ -10,7 +11,6 @@ import {
   sendRadioButtons,
   sendImage,
   purchaseButtons,
-  eventFallback,
   ticketTypeButton,
   paymentMethodButtons,
   paymentNumberButtons,
@@ -74,6 +74,7 @@ app.post('/webhook', async (req, res) => {
       const messageType = data.message.type;
       const buttonId = data.message.button_reply?.id;
       const selectionId = data.message.list_reply?.id;
+      const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
       setSession(userId, { userName });
 

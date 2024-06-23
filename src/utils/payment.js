@@ -4,6 +4,7 @@ import { setUserState } from '../config/state.js';
 import { generateTicket } from './ticket.js';
 import { mainMenu, sendDocument, sendMessage } from '../services/whatasapp/whatsapp.js';
 import path from 'path';
+import { fileURLToPath } from 'url';
 dotenv.config();
 
 const paynow = new Paynow(
@@ -22,6 +23,7 @@ console.log(session);
   const eventName = session.event.title;
   const price = parseInt(session.ticketTypes[0].price);
   const email = 'simbarashedixon@gmail.com';
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
   let replyText = '';   
   
   try {
