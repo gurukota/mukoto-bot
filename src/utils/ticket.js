@@ -68,8 +68,8 @@ export const generateTicket = async(session, userId) => {
         page.drawImage(qrCodeImage, {
             x: 0,
             y: height - 200,
-            width: 200,
-            height: 200,
+            width: eventTemplateImage.width,
+            height: eventTemplateImage.height,
         });
 
         // Save the PDF

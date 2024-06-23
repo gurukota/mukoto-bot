@@ -16,7 +16,6 @@ paynow.returnUrl =
   'http://example.com/return?gateway=paynow&merchantReference=1234';
 
 export const processPayment = async (session, userId) => {
-console.log(session);
   const phone = '0771111111'; // session.phoneNumber
   const username = userId.name;
   const paymentMethod = session.paymentMethod;
@@ -40,7 +39,6 @@ console.log(session);
           await new Promise((r) => setTimeout(r, 8000));
 
           transaction = await paynow.pollTransaction(pollUrl);
-          console.log(transaction.status);
           if (
             transaction.status == 'paid' ||
             transaction.status == 'cancelled'

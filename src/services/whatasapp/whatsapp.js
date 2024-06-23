@@ -193,7 +193,6 @@ const generateQRCode = async (text) => {
 };
 
 const sendDocument = async (caption, filePath, userId) => {
-  console.log(filePath);
   await whatsapp.sendDocument({
     recipientPhone: userId,
     caption,
@@ -203,7 +202,6 @@ const sendDocument = async (caption, filePath, userId) => {
 };
 
 export const sendLocation = async (userId, latitude, longitude, name, address) => {
-  console.log(userId, latitude, longitude, name, address);
   await whatsapp.sendLocation({
     recipientPhone: userId,
     latitude,
