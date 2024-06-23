@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { setUserState } from '../config/state.js';
 import { generateTicket } from './ticket.js';
 import { mainMenu, sendDocument, sendMessage } from '../services/whatasapp/whatsapp.js';
+import path from 'path';
 dotenv.config();
 
 const paynow = new Paynow(
