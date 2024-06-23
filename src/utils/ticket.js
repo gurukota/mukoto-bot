@@ -53,7 +53,7 @@ export const generateTicket = async(session, userId) => {
         //add png to document 
         const res = await fetch(session.event.ticket_template);
         const eventTemplateArrayBuffer = await res.arrayBuffer();
-        const eventTemplateImage = await pdfDoc.embedJpg(eventTemplateArrayBuffer);
+        const eventTemplateImage = await pdfDoc.embedPng(eventTemplateArrayBuffer);
         page.drawImage(eventTemplateImage, {
             x: 0,
             y: 0,

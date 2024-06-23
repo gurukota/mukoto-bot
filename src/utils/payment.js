@@ -54,7 +54,6 @@ console.log(session);
           await sendMessage(userId, replyText);
           await generateTicket(session, userId);
           for (const ticket of session.pdfList) {
-            console.log(path.join(__dirname, '..', '..', 'downloads', `${ticket}.pdf`));
             await sendDocument(
               ticket,
               path.join(__dirname, '..', '..', 'downloads', `${ticket}.pdf`),
@@ -100,7 +99,6 @@ console.log(session);
             await sendMessage(userId, replyText);
             await generateTicket(session, userId);
             for (const ticket of session.pdfList) {
-              console.log(                   path.join(__dirname, '..', '..', 'downloads', `${ticket}.pdf`));
                 await sendDocument(
                 ticket,
                 path.join(__dirname, '..', '..', 'downloads', `${ticket}.pdf`),
