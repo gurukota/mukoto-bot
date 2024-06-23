@@ -18,7 +18,7 @@ import {
   sendLocation,
 } from './services/whatasapp/whatsapp.js';
 // import { processMessage } from './services/nlp/intents.js';
-import { getUserState, setUserState } from './config/state.js';
+import { getUserState, setUserState, userStates } from './config/state.js';
 import { getSession, setSession } from './config/session.js';
 import {
   searchEvents,
@@ -63,6 +63,7 @@ app.get('/webhook', (req, res) => {
 });
 
 app.post('/webhook', async (req, res) => {
+  console.log(userStates);
   try {
     const data = whatsapp.parseMessage(req.body);
     let replyText = '';
