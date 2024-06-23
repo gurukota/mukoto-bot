@@ -63,7 +63,6 @@ app.get('/webhook', (req, res) => {
 });
 
 app.post('/webhook', async (req, res) => {
-  console.log(Object.keys(userStates));
   try {
     const data = whatsapp.parseMessage(req.body);
     let replyText = '';
@@ -76,6 +75,7 @@ app.post('/webhook', async (req, res) => {
       const buttonId = data.message.button_reply?.id;
       const selectionId = data.message.list_reply?.id;
       const __dirname = path.dirname(fileURLToPath(import.meta.url));
+      console.log(userId);
 
       setSession(userId, { userName });
 
