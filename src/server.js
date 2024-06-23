@@ -415,7 +415,7 @@ app.post('/webhook', async (req, res) => {
 
         case 'choose_phone_number':
           if (buttonId == '_use_this_number') {
-            let phoneNumber = userId.phone;
+            let phoneNumber = userId;
             phoneNumber = phoneNumber.replace(/^263/, '0');
             setSession(userId, { phoneNumber });
             await processPayment(session, userId);
