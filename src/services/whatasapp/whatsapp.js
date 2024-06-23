@@ -154,7 +154,7 @@ const ticketTypeButton = async (userId, ticketTypes) => {
   const listOfButtons = ticketTypes
     .map((type) => {
       return {
-        title: `${type.type_name} - ${type.price} ${type.currency_code}`,
+        title: (`${type.type_name} - ${type.price} ${type.currency_code}`).substring(0, 20),
         id: type.ticket_type_id,
       };
     })
