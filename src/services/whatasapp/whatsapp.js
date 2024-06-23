@@ -43,11 +43,11 @@ export const sendRadioButtons = async (events, headerText, bodyText, footerText,
       title: 'Hi there!',
       rows: events
         .map((event) => {
-          return {
+            return {
             id: event.event_id ?? event.category_id,
-            title: event.title ?? event.category_name,
+            title: (event.title ?? event.category_name).substring(0, 24),
             description: event.title ?? event.category_name,
-          };
+            };
         })
         .slice(0, 10),
     },

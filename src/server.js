@@ -289,7 +289,6 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'radio_button_message') {
             const events = await getEventsByCategory(selectionId);
             if (events.length === 0) {
-              console.log({ events });
               replyText =
                 'No events found for this category. Find another event?';
               const listButtons = [
@@ -305,7 +304,6 @@ app.post('/webhook', async (req, res) => {
               await sendButtons(userId, replyText, listButtons);
               setUserState(userId, 'event_fallback');
             } else {
-              console.log('dfsfs');
               const headerText = `#Special Offers: 🎉🎉 🎉`;
               const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
               const footerText = 'Powered by: Fundasec Security';
