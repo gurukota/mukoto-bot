@@ -63,7 +63,7 @@ app.get('/webhook', (req, res) => {
 });
 
 app.post('/webhook', async (req, res) => {
-  console.log(userStates);
+  console.log(Object.keys(userStates));
   try {
     const data = whatsapp.parseMessage(req.body);
     let replyText = '';
