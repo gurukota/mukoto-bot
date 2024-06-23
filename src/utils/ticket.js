@@ -57,8 +57,8 @@ export const generateTicket = async(session, userId) => {
         page.drawImage(eventTemplateImage, {
             x: 0,
             y: 0,
-            width: width,
-            height: height,
+            width: eventTemplateImage.width,
+            height: eventTemplateImage.height,
         });
 
         // Add QR code to the PDF
@@ -68,8 +68,8 @@ export const generateTicket = async(session, userId) => {
         page.drawImage(qrCodeImage, {
             x: 0,
             y: height - 200,
-            width: eventTemplateImage.width,
-            height: eventTemplateImage.height,
+            width: 200,
+            height: 200,
         });
 
         // Save the PDF
