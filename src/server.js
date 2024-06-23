@@ -68,7 +68,7 @@ app.post('/webhook', async (req, res) => {
     let replyText = '';
     if (data?.isMessage) {
       const userMessage = data.message.text?.body;
-      const userId = data.message.from;
+      const userId = data.message.from.phone;
       const userName = data.message.from.name;
       const phone = data.message.from.phone;
       const messageType = data.message.type;
