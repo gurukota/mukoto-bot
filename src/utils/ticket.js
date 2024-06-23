@@ -67,7 +67,7 @@ export const generateTicket = async(session, userId) => {
         const qrCodeImage = await pdfDoc.embedPng(qrCodeArrayBuffer);
         page.drawImage(qrCodeImage, {
             x: 0,
-            y: height - 200,
+            y: 0,
             width: 200,
             height: 200,
         });
