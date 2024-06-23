@@ -14,7 +14,7 @@ export const generateTicket = async(session, userId) => {
         const qrCode = await generateQRCode(qrCodeText);
         const ticketData = {
             event_id: session.event.id,
-            name_on_ticket: `${userId.name}_${randomString}`,
+            name_on_ticket: `${session.userName}_${randomString}`,
             checked_in: false,
             qr_code: qrCodeText,
             qr_code_url: qrCode, // Set the URL of the QR code image if applicable
@@ -74,8 +74,8 @@ export const generateTicket = async(session, userId) => {
 
         // Save the PDF
         const pdfBytes = await pdfDoc.save();
-        const pdfFileName = `./downloads/${userId.name}_${randomString}.pdf`;
-        pdfList.push(`${userId.name}_${randomString}`);
+        const pdfFileName = `./downloads/${session.userName}_${randomString}.pdf`;
+        pdfList.push(`${session.userName}_${randomString}`);
         fs.writeFileSync(pdfFileName, pdfBytes);
     }
 
