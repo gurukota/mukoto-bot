@@ -51,9 +51,10 @@ console.log(session);
           await sendMessage(userId, replyText);
           await generateTicket(session, userId);
           for (const ticket of session.pdfList) {
+            console.log( path.join(__dirname, 'downloads', `${ticket.name_on_ticket}.pdf`));
             await sendDocument(
               ticket,
-              `/Users/halfbae/dev/mukoto-bot/downloads/${ticket}.pdf`,
+              path.join(__dirname, 'downloads', `${ticket.name_on_ticket}.pdf`),
               userId
             );
           }
