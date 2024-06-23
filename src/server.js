@@ -200,7 +200,7 @@ app.post('/webhook', async (req, res) => {
               for (const ticket of data.tickets) {
                 await sendDocument(
                   ticket.name_on_ticket,
-                  path.join(__dirname, '..', 'downloads', `${ticket.name_on_ticket}.pdf`),
+                  path.join(__dirname, '..', 'downloads', `${ticket}.pdf`),
                   userId
                 );
               }
