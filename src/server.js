@@ -1,6 +1,7 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { validate, version } from 'uuid';
+import path from 'path';
 import {
   sendMessage,
   whatsapp,
@@ -198,7 +199,7 @@ app.post('/webhook', async (req, res) => {
               for (const ticket of data.tickets) {
                 await sendDocument(
                   ticket.name_on_ticket,
-                  `/Users/halfbae/dev/mukoto-bot/downloads/${ticket.name_on_ticket}.pdf`,
+                  path.join(__dirname, 'downloads', `${ticket.name_on_ticket}.pdf`),
                   userId
                 );
               }
