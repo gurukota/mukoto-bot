@@ -24,7 +24,7 @@ export const generateTicket = async(session, userId) => {
             price_paid: session.ticketTypes[0].price, // Set the price paid for the ticket if applicable
             total_quantity: session.quantity,// Set the total quantity of tickets if applicable
             email: "purchases@mukoto.co.zw",
-            phone: session.phoneNumber, // Set the phone number of the ticket holder
+            phone: `263${session.phoneNumber.slice(1)}`,// Set the phone number of the ticket holder
             currency_code: session.ticketTypes[0].currency_code,
             payment_status:"paid",
 

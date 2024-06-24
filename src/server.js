@@ -34,6 +34,7 @@ import {
 } from './utils/api.js';
 import dotenv from 'dotenv';
 import { processPayment } from './utils/payment.js';
+import { set } from 'express/lib/application.js';
 dotenv.config();
 
 const app = express();
@@ -171,7 +172,9 @@ app.post('/webhook', async (req, res) => {
                 setUserState(userId, 'resend_ticket');
               } else {
                 replyText = 'Ticket(s) not found. Please try again.';
+                await sendMessage(userId, replyText);
                 setUserState(userId, 'menu');
+                setUserState(userId, 'choose_option');
               }
               // setUserState(userId, 'view_or_resend_tickets');
             } else if (buttonId === '_utilities') {
@@ -381,7 +384,7 @@ app.post('/webhook', async (req, res) => {
               setUserState(userId, 'choose_option');
             }
           } else {
-            replyText = 'Please should choose a valid option. Please try again.';
+            replyText = 'Please you should choose a valid option. Please try again.';
             await sendMessage(userId, replyText);
             await mainMenu(userName, userId);
             setUserState(userId, 'choose_option');
