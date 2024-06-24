@@ -1,5 +1,6 @@
 import WhatsAppCloudAPI from 'whatsappcloudapi_wrapper';
 import dotenv from 'dotenv';
+import { assertFieldAppearanceOptions } from 'pdf-lib/cjs/api/form/PDFField';
 dotenv.config();
 
 const whatsapp = new WhatsAppCloudAPI({
@@ -44,9 +45,9 @@ export const sendRadioButtons = async (events, headerText, bodyText, footerText,
       rows: events
         .map((event) => {
             return {
-            id: event.event_id ?? event.category_id,
-            title: (event.title ?? event.category_name).substring(0, 24),
-            description: event.description ?? '`',
+            id: event.event_id ?? event.category_id ?? event.ticket_type_id,
+            title: (event.title ?? event.category_name ?? event.type_name).substring(0, 24),
+            description: (event.description ?? event.category_name ?? `${event.price} ${event.currency_code}`).substring(0,24),
             };
         })
         .slice(0, 10),

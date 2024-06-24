@@ -367,16 +367,14 @@ app.post('/webhook', async (req, res) => {
                 const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
                 const footerText = 'Powered by: Your Address Tech';
                 const actionTitle = 'Select an Event';
-                // await sendRadioButtons(
-                //   ticketTypes,
-                //   headerText,
-                //   bodyText,
-                //   footerText,
-                //   actionTitle,
-                //   userId
-                // );
-                console.log(ticketTypes);
-                await ticketTypeButton(ticketTypes, headerText, bodyText, footerText, actionTitle, userId);
+                await sendRadioButtons(
+                  ticketTypes,
+                  headerText,
+                  bodyText,
+                  footerText,
+                  actionTitle,
+                  userId
+                );
                 setUserState(userId, 'choose_ticket_type');
                 setSession(userId, { ticketTypes });
               } else {
@@ -404,8 +402,8 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'choose_ticket_type':
-          if (messageType === 'simple_button_message') {
-            const ticketTypeId = buttonId;
+          if (messageType === 'radio_button_message') {
+            const ticketTypeId = selectionId;
             const ticketType = await getTicketType(
               session.event.id,
               ticketTypeId
@@ -414,6 +412,11 @@ app.post('/webhook', async (req, res) => {
             await sendMessage(userId, replyText);
             setSession(userId, { ticketType });
             setUserState(userId, 'enter_ticket_quantity');
+          } else {
+            replyText = 'Please select a ticket type. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
           }
           break;
 
