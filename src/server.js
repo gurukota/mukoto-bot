@@ -156,6 +156,7 @@ app.post('/webhook', async (req, res) => {
                       eventsArray.push({
                         event_id: ticket.event_id,
                         title: eventData.event.title,
+                        description: eventData.event.description,
                       });
                     }
                     processedEventIds.add(ticket.event_id);
@@ -242,7 +243,6 @@ app.post('/webhook', async (req, res) => {
                 const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
                 const footerText = 'Powered by: Your Address Tech';
                 const actionTitle = 'Select Category';
-                console.log(eventCategories);
                 await sendRadioButtons(
                   eventCategories,
                   headerText,
