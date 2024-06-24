@@ -38,16 +38,15 @@ const mainMenu = async (username, userId) => {
 };
 
 export const sendRadioButtons = async (events, headerText, bodyText, footerText, actionTitle, userId) => {
-  console.log(events);
   const listOfSections = [
     {
       title: 'Hi there!',
       rows: events
         .map((event) => {
             return {
-            id: event.event_id ?? event.category_id ?? event.ticket_type_id,
+            id: event.ticket_type_id ?? event.category_id ?? event.event_id,
             title: (event.title ?? event.category_name ?? event.type_name).substring(0, 24),
-            description: (event.description ?? event.category_name ?? `${event.price} ${event.currency_code}`).substring(0,24),
+            description: event.description ?? event.category_name ?? `${event.price} ${event.currency_code}`,
             };
         })
         .slice(0, 10),
