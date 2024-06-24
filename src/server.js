@@ -144,7 +144,7 @@ app.post('/webhook', async (req, res) => {
               const headerText = `#Mukoto Events🚀`;
               const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
-              const actionTitle = 'Select an Event';
+              const actionTitle = 'Select Event';
               const eventsArray = [];
               if (data.tickets.length !== 0) {
                 for (const ticket of data.tickets) {
@@ -239,7 +239,7 @@ app.post('/webhook', async (req, res) => {
                 const headerText = `#Mukoto Events🚀`;
                 const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
                 const footerText = 'Powered by: Your Address Tech';
-                const actionTitle = 'Select a Category';
+                const actionTitle = 'Select Category';
                 console.log(eventCategories);
                 await sendRadioButtons(
                   eventCategories,
@@ -280,7 +280,7 @@ app.post('/webhook', async (req, res) => {
             const headerText = `#Mukoto Events🚀`;
             const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
             const footerText = 'Powered by: Your Address Tech';
-            const actionTitle = 'Select an Event';
+            const actionTitle = 'Select Event';
             await sendRadioButtons(
               events,
               headerText,
@@ -315,7 +315,7 @@ app.post('/webhook', async (req, res) => {
               const headerText = `#Mukoto Events🚀`;
               const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
-              const actionTitle = 'Select an Event';
+              const actionTitle = 'Select Event';
               await sendRadioButtons(
                 events,
                 headerText,
@@ -366,7 +366,7 @@ app.post('/webhook', async (req, res) => {
                 const headerText = `#Mukoto Events🚀`;
                 const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
                 const footerText = 'Powered by: Your Address Tech';
-                const actionTitle = 'Select an Event';
+                const actionTitle = 'Select Ticket Type';
                 await sendRadioButtons(
                   ticketTypes,
                   headerText,
@@ -502,7 +502,7 @@ app.post('/webhook', async (req, res) => {
               const headerText = `#Mukoto Events🚀`;
               const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
-              const actionTitle = 'Select an Event';
+              const actionTitle = 'Select Event';
               const events = [];
               const processedEventIds = new Set();
               for (const ticket of tickets) {
