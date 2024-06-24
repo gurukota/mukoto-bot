@@ -266,7 +266,7 @@ app.post('/webhook', async (req, res) => {
           const events = await searchEvents(userMessage);
           if (!events) {
             replyText =
-              'No events found for your search. Please try another query.';
+              'No events found for your search. Please try again';
             const listButtons = [
               {
                 title: 'Yes',
@@ -490,11 +490,16 @@ app.post('/webhook', async (req, res) => {
               replyText =
                 'Please enter the name or type of event you are interested in:';
               await sendMessage(userId, replyText);
-              setUserState(userId, 'find_event');
+              setUserState(userId, 'search_event');
             } else if (buttonId === '_main_menu') {
               await mainMenu(userName, userId);
               setUserState(userId, 'choose_option');
             }
+          } else {
+            replyText = 'Please choose an option from the menu.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
           }
           break;
 
