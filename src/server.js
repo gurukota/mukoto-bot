@@ -118,7 +118,7 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'choose_option':
-          if (messageType == 'simple_button_message') {
+          if (messageType == 'simple_button_message') { 
             if (buttonId === '_find_event') {
               replyText = 'Choose how you would like to find an event:';
               const listButtons = [
@@ -145,7 +145,6 @@ app.post('/webhook', async (req, res) => {
               const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
               const footerText = 'Powered by: Fundasec Security';
               const actionTitle = 'Select an Event';
-
               const eventsArray = [];
               if (data) {
                 for (const ticket of data.tickets) {
@@ -272,9 +271,9 @@ app.post('/webhook', async (req, res) => {
             await sendButtons(userId, replyText, listButtons);
             setUserState(userId, 'event_fallback');
           } else {
-            const headerText = `#Special Offers: 🎉🎉 🎉`;
-            const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
-            const footerText = 'Powered by: Fundasec Security';
+            const headerText = `#Mukoto Events🚀`;
+            const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
+            const footerText = 'Powered by: Your Address Tech';
             const actionTitle = 'Select an Event';
             await sendRadioButtons(
               events,
@@ -307,9 +306,9 @@ app.post('/webhook', async (req, res) => {
               await sendButtons(userId, replyText, listButtons);
               setUserState(userId, 'event_fallback');
             } else {
-              const headerText = `#Special Offers: 🎉🎉 🎉`;
-              const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
-              const footerText = 'Powered by: Fundasec Security';
+              const headerText = `#Mukoto Events🚀`;
+              const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
+              const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select an Event';
               await sendRadioButtons(
                 events,
@@ -322,7 +321,7 @@ app.post('/webhook', async (req, res) => {
               setUserState(userId, 'show_event');
             }
           } else {
-            replyText = 'Please select a category from the list.';
+            replyText = 'You should have selected a category. Please try again.';
             await sendMessage(userId, replyText);
             setUserState(userId, 'menu');
           }
@@ -332,8 +331,8 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'radio_button_message') {
             const { event } = await getEvent(selectionId);
             if (event) {
-              let text = `_Title_: *${event.title.trim()}*\n\n\n`;
-              text += `_Description_: ${event.title.trim()}\n\n\n`;
+              let text = `*${event.title.trim()}*\n`;
+              text += `${event.description.trim()}`;
               await sendImage(userId, event.image, text);
               await new Promise((r) => setTimeout(r, 2000));
               await purchaseButtons(userId, selectionId);
@@ -347,6 +346,8 @@ app.post('/webhook', async (req, res) => {
             }
             setUserState(userId, 'choosen_event_options');
           } else {
+            replyText = 'You should have selected an event from the list. Please try again.';
+            await sendMessage(userId, replyText);
             setUserState(userId, 'menu');
           }
           break;
