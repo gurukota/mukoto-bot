@@ -509,10 +509,11 @@ app.post('/webhook', async (req, res) => {
                 if (!processedEventIds.has(ticket.event_id)) {
                   setUserState(userId, 'paynow');
                   const eventData = await getEvent(ticket.event_id);
-                  if (eventData) {
+                  if (eventData.event.length !== 0) {
                     events.push({
                       event_id: ticket.event_id,
                       title: eventData.event.title,
+                      description: eventData.event.description,
                     });
                   }
                   processedEventIds.add(ticket.event_id);
