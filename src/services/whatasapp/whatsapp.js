@@ -37,12 +37,12 @@ const mainMenu = async (username, userId) => {
   });
 };
 
-export const sendRadioButtons = async (data, headerText, bodyText, footerText, actionTitle, userId, type) => {
+export const sendRadioButtons = async (dataArray, headerText, bodyText, footerText, actionTitle, userId, type) => {
   const listOfSections = [
     {
       title: 'Hi there!',
-      rows: events
-        .map((event) => {
+      rows: dataArray
+        .map((data) => {
           let id, title, description;
           if(type === 'category') {
             id = data.category_id;
