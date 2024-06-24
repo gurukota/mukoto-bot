@@ -251,7 +251,7 @@ app.post('/webhook', async (req, res) => {
               }
             }
           } else {
-            replyText = 'You should have selected an option from the menu. Please try again.';
+            replyText = 'Please choose an option from the menu.';
             await sendMessage(userId, replyText);
             await mainMenu(userName, userId);
           }
