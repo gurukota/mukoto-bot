@@ -234,9 +234,9 @@ app.post('/webhook', async (req, res) => {
                 await mainMenu(userName, userId);
                 setUserState(userId, 'choose_option');
               } else {
-                const headerText = `SELECT CATEGORY 🎉🎉 🎉`;
-                const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the categories below:`;
-                const footerText = 'Powered by: Fundasec Security';
+                const headerText = `#Mukoto Events🚀`;
+                const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
+                const footerText = 'Powered by: Your Address Tech';
                 const actionTitle = 'Select a Category';
                 console.log(eventCategories);
                 await sendRadioButtons(
@@ -250,6 +250,10 @@ app.post('/webhook', async (req, res) => {
                 setUserState(userId, 'find_event_by_category');
               }
             }
+          } else {
+            replyText = 'You should have selected an option from the menu. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
           }
           break;
 
