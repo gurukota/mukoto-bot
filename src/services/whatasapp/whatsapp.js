@@ -37,16 +37,30 @@ const mainMenu = async (username, userId) => {
   });
 };
 
-export const sendRadioButtons = async (events, headerText, bodyText, footerText, actionTitle, userId) => {
+export const sendRadioButtons = async (data, headerText, bodyText, footerText, actionTitle, userId, type) => {
   const listOfSections = [
     {
       title: 'Hi there!',
       rows: events
         .map((event) => {
+          let id, title, description;
+          if(type === 'category') {
+            id = data.category_id;
+            title = data.category_name;
+            description = data.description;
+          } else if(type === 'event') {
+            id = data.event_id;
+            title = data.title;
+            description = data.description;
+          } else if(type === 'ticket_type') {
+            id = data.ticket_type_id;
+            title = data.type_name;
+            description = `${event.price} ${event.currency_code}`;
+          }
             return {
-            id: event.ticket_type_id ?? event.category_id ?? event.event_id,
-            title: (event.type_name ?? event.category_name ?? event.title).substring(0, 24),
-            description: (event.price && event.currency_code) ? `${event.price} ${event.currency_code}` : event.category_name ?? event.description,
+            id,
+            title: (title).substring(0, 24),
+            description,
             };
         })
         .slice(0, 10),

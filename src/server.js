@@ -167,7 +167,8 @@ app.post('/webhook', async (req, res) => {
                   bodyText,
                   footerText,
                   actionTitle,
-                  userId
+                  userId,
+                  'event'
                 );
                 setUserState(userId, 'resend_ticket');
               } else {
@@ -248,7 +249,8 @@ app.post('/webhook', async (req, res) => {
                   bodyText,
                   footerText,
                   actionTitle,
-                  userId
+                  userId,
+                  'category'
                 );
                 setUserState(userId, 'find_event_by_category');
               }
@@ -288,7 +290,8 @@ app.post('/webhook', async (req, res) => {
               bodyText,
               footerText,
               actionTitle,
-              userId
+              userId,
+              'event'
             );
             setUserState(userId, 'show_event');
           }
@@ -323,7 +326,8 @@ app.post('/webhook', async (req, res) => {
                 bodyText,
                 footerText,
                 actionTitle,
-                userId
+                userId,
+                'event'
               );
               setUserState(userId, 'show_event');
             }
@@ -377,7 +381,8 @@ app.post('/webhook', async (req, res) => {
                   bodyText,
                   footerText,
                   actionTitle,
-                  userId
+                  userId,
+                  'ticket_type'
                 );
                 setUserState(userId, 'choose_ticket_type');
                 setSession(userId, { ticketTypes });
@@ -529,7 +534,8 @@ app.post('/webhook', async (req, res) => {
                 bodyText,
                 footerText,
                 actionTitle,
-                userId
+                userId,
+                'event'
               );
               setUserState(userId, 'send_event_location');
             }
