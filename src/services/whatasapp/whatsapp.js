@@ -47,7 +47,7 @@ export const sendRadioButtons = async (dataArray, headerText, bodyText, footerTe
           if(type === 'category') {
             id = data.category_id;
             title = data.category_name;
-            description = data.description;
+            description = data.category_name;
           } else if(type === 'event') {
             id = data.event_id;
             title = data.title;
