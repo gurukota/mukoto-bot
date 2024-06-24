@@ -20,11 +20,11 @@ export const generateTicket = async(session, userId) => {
             qr_code_url: qrCode, // Set the URL of the QR code image if applicable
             ticket_type_id: session.ticketTypes[0].ticket_type_id, // Set the ticket type ID if applicable
             status: 'paid', // Set the status of     the ticket if applicable
-            full_name: userId.name, // Set the full name of the ticket holder
+            full_name: session.userName, // Set the full name of the ticket holder
             price_paid: session.ticketTypes[0].price, // Set the price paid for the ticket if applicable
             total_quantity: session.quantity,// Set the total quantity of tickets if applicable
             email: "purchases@mukoto.co.zw",
-            phone: userId.phone, // Set the phone number of the ticket holder
+            phone: session.phoneNumber, // Set the phone number of the ticket holder
             currency_code: session.ticketTypes[0].currency_code,
             payment_status:"paid",
 

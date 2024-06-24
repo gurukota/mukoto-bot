@@ -141,9 +141,9 @@ app.post('/webhook', async (req, res) => {
             } else if (buttonId === '_view_resend_ticket') {
               const data = await getTicketByPhone(phone);
               const processedEventIds = new Set();
-              const headerText = `SELECT EVENT 🎉🎉 🎉`;
-              const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
-              const footerText = 'Powered by: Fundasec Security';
+              const headerText = `#Mukoto Events🚀`;
+              const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
+              const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select an Event';
               const eventsArray = [];
               if (data) {
@@ -325,7 +325,7 @@ app.post('/webhook', async (req, res) => {
               setUserState(userId, 'show_event');
             }
           } else {
-            replyText = 'You should have selected a category. Please try again.';
+            replyText = 'You should select a category. Please try again.';
             await sendMessage(userId, replyText);
             setUserState(userId, 'menu');
           }
@@ -350,32 +350,39 @@ app.post('/webhook', async (req, res) => {
             }
             setUserState(userId, 'choosen_event_options');
           } else {
-            replyText = 'You should have selected an event from the list. Please try again.';
+            replyText = 'You should select an event from the list. Please try again.';
             await sendMessage(userId, replyText);
             setUserState(userId, 'menu');
           }
           break;
 
         case 'choosen_event_options':
-          if (messageType === 'simple_button_message') {
-            const ticketTypes = await getTicketTypes(session.event.id);
-            if (ticketTypes.length > 0) {
-              await ticketTypeButton(userId, ticketTypes);
-              setUserState(userId, 'choose_ticket_type');
-              setSession(userId, { ticketTypes });
-            } else {
+          if(messageType === 'simple_button_message'){
+            if (buttonId === '_purchase') {
+              const ticketTypes = await getTicketTypes(session.event.id);
+              if (ticketTypes.length > 0) {
+                await ticketTypeButton(userId, ticketTypes);
+                setUserState(userId, 'choose_ticket_type');
+                setSession(userId, { ticketTypes });
+              } else {
+                replyText =
+                  'Error fetching ticket types for this event. Please try again later.';
+                await sendMessage(userId, replyText);
+                await mainMenu(userName, userId);
+                setUserState(userId, 'choose_option');
+              }
+            } else if (buttonId === '_find_event') {
               replyText =
-                'Error fetching ticket types for this event. Please try again later.';
+                'Please enter the name or type of event you are interested in:';
               await sendMessage(userId, replyText);
+              setUserState(userId, 'find_event');
+            } else if (buttonId === '_main_menu') {
               await mainMenu(userName, userId);
               setUserState(userId, 'choose_option');
             }
-          } else if (buttonId === '_find_event') {
-            replyText =
-              'Please enter the name or type of event you are interested in:';
+          } else {
+            replyText = 'Please should choose a valid option. Please try again.';
             await sendMessage(userId, replyText);
-            setUserState(userId, 'find_event');
-          } else if (buttonId === '_main_menu') {
             await mainMenu(userName, userId);
             setUserState(userId, 'choose_option');
           }
@@ -454,14 +461,15 @@ app.post('/webhook', async (req, res) => {
         case 'utilities':
           if (messageType === 'simple_button_message') {
             const { tickets } = await getTicketByPhone(phone);
+            console.log(tickets);
             if (tickets.length == 0) {
               replyText = 'You have no tickets to view event locations.';
               await sendMessage(userId, replyText);
               await mainMenu(userName, userId);
               setUserState(userId, 'choose_option');
             } else {
-              const headerText = `SELECT EVENT 🎉🎉 🎉`;
-              const bodyText = `Mukoto 🎅🏿 has lined up some great events for you based on your previous history.\n\nPlease select one of the events below:`;
+              const headerText = `#Mukoto Events🚀`;
+              const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select an Event';
               const events = [];
