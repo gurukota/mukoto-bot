@@ -327,7 +327,7 @@ app.post('/webhook', async (req, res) => {
               setUserState(userId, 'show_event');
             }
           } else {
-            replyText = 'You should select a category. Please try again.';
+            replyText = 'Select a category. Please try again.';
             await sendMessage(userId, replyText);
             setUserState(userId, 'menu');
           }
@@ -352,7 +352,7 @@ app.post('/webhook', async (req, res) => {
             }
             setUserState(userId, 'choosen_event_options');
           } else {
-            replyText = 'You should select an event from the list. Please try again.';
+            replyText = 'Select an event from the list. Please try again.';
             await sendMessage(userId, replyText);
             setUserState(userId, 'menu');
           }
@@ -363,7 +363,20 @@ app.post('/webhook', async (req, res) => {
             if (buttonId === '_purchase') {
               const ticketTypes = await getTicketTypes(session.event.id);
               if (ticketTypes.length > 0) {
-                await ticketTypeButton(userId, ticketTypes);
+                const headerText = `#Mukoto Events🚀`;
+                const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
+                const footerText = 'Powered by: Your Address Tech';
+                const actionTitle = 'Select an Event';
+                // await sendRadioButtons(
+                //   ticketTypes,
+                //   headerText,
+                //   bodyText,
+                //   footerText,
+                //   actionTitle,
+                //   userId
+                // );
+                console.log(ticketTypes);
+                await ticketTypeButton(ticketTypes, headerText, bodyText, footerText, actionTitle, userId);
                 setUserState(userId, 'choose_ticket_type');
                 setSession(userId, { ticketTypes });
               } else {
@@ -383,7 +396,7 @@ app.post('/webhook', async (req, res) => {
               setUserState(userId, 'choose_option');
             }
           } else {
-            replyText = 'Please you should choose a valid option. Please try again.';
+            replyText = 'Choose a valid option. Please try again.';
             await sendMessage(userId, replyText);
             await mainMenu(userName, userId);
             setUserState(userId, 'choose_option');
@@ -406,8 +419,21 @@ app.post('/webhook', async (req, res) => {
 
         case 'enter_ticket_quantity':
           const quantity = parseInt(userMessage);
+          if (isNaN(quantity) || quantity < 1 || quantity > 10) {
+            if(quantity > 10){
+              replyText = 'You can only purchase a maximum of 10 tickets. Please try again.';
+              await sendMessage(userId, replyText);
+            } else {
+              replyText = 'Enter a valid number of tickets. Please try again.';
+              await sendMessage(userId, replyText);
+            }
+
+            replyText = `You have selected ${ticketType.type_name} ticket. How many tickets do you want to buy?`;
+            await sendMessage(userId, replyText);
+            setUserState(userId, 'enter_ticket_quantity');
+          }
           const total = quantity * session.ticketType.price;
-          replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is $${total} ${session.ticketType.currency_code}. Please confirm payment method.`;
+          replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. Please confirm payment method.`;
           await paymentMethodButtons(userId, replyText);
           setSession(userId, { quantity });
           setUserState(userId, 'choose_payment_method');
