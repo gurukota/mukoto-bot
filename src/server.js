@@ -3,6 +3,7 @@ import bodyParser from 'body-parser';
 import { validate, version } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import moment from 'moment';
 import {
   sendMessage,
   whatsapp,
@@ -337,8 +338,11 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'radio_button_message') {
             const { event } = await getEvent(selectionId);
             if (event) {
+              const formattedDate = moment(event.event_start).format('dddd, MMMM Do YYYY, h:mm:ss a');
               let text = `*${event.title.trim()}*\n`;
-              text += `${event.description.trim()}`;
+              text += `*${event.description.trim()}*`;
+              text += `\n*${formattedDate}*`;
+              text += `\n*${event.event_location.location}*`;
               await sendImage(userId, event.image, text);
               await new Promise((r) => setTimeout(r, 2000));
               await purchaseButtons(userId, selectionId);
