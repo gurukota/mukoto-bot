@@ -38,6 +38,7 @@ const mainMenu = async (username, userId) => {
 };
 
 export const sendRadioButtons = async (events, headerText, bodyText, footerText, actionTitle, userId) => {
+  console.log(events);
   const listOfSections = [
     {
       title: 'Hi there!',
