@@ -55,7 +55,7 @@ export const sendRadioButtons = async (data, headerText, bodyText, footerText, a
           } else if(type === 'ticket_type') {
             id = data.ticket_type_id;
             title = data.type_name;
-            description = `${event.price} ${event.currency_code}`;
+            description = `${data.price} ${data.currency_code}`;
           }
             return {
             id,
