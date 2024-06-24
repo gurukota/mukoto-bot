@@ -1,6 +1,5 @@
 import WhatsAppCloudAPI from 'whatsappcloudapi_wrapper';
 import dotenv from 'dotenv';
-import { assertFieldAppearanceOptions } from 'pdf-lib/cjs/api/form/PDFField';
 dotenv.config();
 
 const whatsapp = new WhatsAppCloudAPI({
