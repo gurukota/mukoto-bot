@@ -198,10 +198,8 @@ app.post('/webhook', async (req, res) => {
         case 'resend_ticket':
           if (messageType === 'radio_button_message') {
             const data = await getTicketByPhone(phone);
-            console.log(data);
             if (data) {
               for (const ticket of data.tickets) {
-                console.log(path.join(__dirname, '..', 'downloads', `${ticket}.pdf`));
                 await sendDocument(
                   ticket.name_on_ticket,
                   path.join(__dirname, '..', 'downloads', `${ticket}.pdf`),
