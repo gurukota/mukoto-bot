@@ -200,6 +200,7 @@ app.post('/webhook', async (req, res) => {
             const data = await getTicketByPhone(phone);
             if (data) {
               for (const ticket of data.tickets) {
+                console.log(path.join(__dirname, '..', 'downloads', `${ticket}.pdf`));
                 await sendDocument(
                   ticket.name_on_ticket,
                   path.join(__dirname, '..', 'downloads', `${ticket}.pdf`),
