@@ -46,7 +46,7 @@ export const sendRadioButtons = async (events, headerText, bodyText, footerText,
             return {
             id: event.ticket_type_id ?? event.category_id ?? event.event_id,
             title: (event.type_name ?? event.category_name ?? event.title).substring(0, 24),
-            description: `${event.price} ${event.currency_code}` ?? event.category_name ?? event.description,
+            description: (event.price && event.currency_code) ? `${event.price} ${event.currency_code}` : event.category_name ?? event.description,
             };
         })
         .slice(0, 10),
