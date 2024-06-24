@@ -146,7 +146,7 @@ app.post('/webhook', async (req, res) => {
               const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select an Event';
               const eventsArray = [];
-              if (data) {
+              if (data.tickets.length !== 0) {
                 for (const ticket of data.tickets) {
                   if (!processedEventIds.has(ticket.event_id)) {
                     setUserState(userId, 'paynow');
