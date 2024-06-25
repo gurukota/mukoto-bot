@@ -16,7 +16,7 @@ paynow.returnUrl =
   'http://example.com/return?gateway=paynow&merchantReference=1234';
 
 export const processPayment = async (session, userId) => {
-  const phone = '0771111111'; // session.phoneNumber
+  const phone = session.phoneNumber
   const username = session.userName;
   const paymentMethod = session.paymentMethod;
   const eventName = session.event.title;
