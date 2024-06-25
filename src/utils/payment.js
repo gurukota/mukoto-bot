@@ -5,7 +5,6 @@ import { generateTicket } from './ticket.js';
 import { mainMenu, sendDocument, sendImage, sendMessage, sendUrlButton } from '../services/whatasapp/whatsapp.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { send } from 'process';
 
 dotenv.config();
 
