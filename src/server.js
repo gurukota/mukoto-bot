@@ -437,20 +437,20 @@ app.post('/webhook', async (req, res) => {
             if(quantity > 10){
               replyText = 'You can only purchase a maximum of 10 tickets. Please try again.';
               await sendMessage(userId, replyText);
+              replyText = 'Enter a valid number of tickets.';
+              await sendMessage(userId, replyText);
             } else {
-              replyText = 'Enter a valid number of tickets. Please try again.';
+              replyText = 'Enter a valid number of tickets.';
               await sendMessage(userId, replyText);
             }
-
-            replyText = `You have selected ${session.ticketType.type_name} ticket. How many tickets do you want to buy?`;
-            await sendMessage(userId, replyText);
             setUserState(userId, 'enter_ticket_quantity');
-          }
+          } else {
           const total = quantity * session.ticketType.price;
           replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
           await paymentMethodButtons(userId, replyText);
           setSession(userId, { total });
           setUserState(userId, 'choose_payment_method');
+          }
           break;
 
         case 'choose_payment_method':
@@ -482,6 +482,11 @@ app.post('/webhook', async (req, res) => {
             replyText = 'Please enter the desired transact number:';
             await sendMessage(userId, replyText);
             setUserState(userId, 'other_phone_number');
+          } else {
+            replyText = 'Please choose a valid option. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
           }
           break;
 
@@ -589,7 +594,7 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
-const port = process.env.STATUS == 'production'  ? process.env.DEV_PORT : process.env.DEV_PORT;
+const port = process.env.STATUS == 'production'  ? process.env.PROD_PORT : process.env.DEV_PORT;
 app.use('*', (req, res) => res.status(404).send('404 Not Found'));
 app.listen(port, () => {
   console.log(`Webhook is listening on port ${port}`);
