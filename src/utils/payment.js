@@ -18,12 +18,12 @@ paynow.returnUrl =
   'http://example.com/return?gateway=paynow&merchantReference=1234';
 
 export const processPayment = async (session, userId) => {
-  const phone = '0771111111'; //session.phoneNumber
+  const phone = session.phoneNumber
   const username = session.userName;
   const paymentMethod = session.paymentMethod;
   const eventName = session.event.title;
   const price = parseInt(session.total);
-  const email = 'simbarashedixon@gmail.com'; // purchases@mukoto.co.zw
+  const email = 'purchases@mukoto.co.zw';
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   let replyText = '';   
   
@@ -32,7 +32,6 @@ export const processPayment = async (session, userId) => {
     payment.add(eventName, price);
     if (paymentMethod == 'ecocash' || paymentMethod == 'innbucks') {
       const response = await paynow.sendMobile(payment, phone, paymentMethod);
-      console.log(response);
       if (response.success) {
         setUserState(userId, 'paynow');
         let pollUrl = response.pollUrl;
