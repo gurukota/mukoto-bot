@@ -4,6 +4,7 @@ import { validate, version } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import moment from 'moment';
+
 import {
   sendMessage,
   whatsapp,
@@ -12,7 +13,6 @@ import {
   sendRadioButtons,
   sendImage,
   purchaseButtons,
-  ticketTypeButton,
   paymentMethodButtons,
   paymentNumberButtons,
   sendButtons,
@@ -300,6 +300,7 @@ app.post('/webhook', async (req, res) => {
         case 'find_event_by_category':
           if (messageType === 'radio_button_message') {
             const events = await getEventsByCategory(selectionId);
+            console.log(events);
             if (events.length === 0) {
               replyText =
                 'No events found for this category. Find another event?';
@@ -342,6 +343,7 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'radio_button_message') {
             const { event } = await getEvent(selectionId);
             if (event) {
+
               const formattedDate = moment(event.event_start).format('dddd, MMMM Do YYYY, h:mm:ss a');
               let text = `*${event.title.trim()}*\n`;
               text += `*${event.description.trim()}*`;
@@ -440,14 +442,14 @@ app.post('/webhook', async (req, res) => {
               await sendMessage(userId, replyText);
             }
 
-            replyText = `You have selected ${ticketType.type_name} ticket. How many tickets do you want to buy?`;
+            replyText = `You have selected ${session.ticketType.type_name} ticket. How many tickets do you want to buy?`;
             await sendMessage(userId, replyText);
             setUserState(userId, 'enter_ticket_quantity');
           }
           const total = quantity * session.ticketType.price;
-          replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. Please confirm payment method.`;
+          replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
           await paymentMethodButtons(userId, replyText);
-          setSession(userId, { quantity });
+          setSession(userId, { total });
           setUserState(userId, 'choose_payment_method');
           break;
 
@@ -458,7 +460,12 @@ app.post('/webhook', async (req, res) => {
               await paymentNumberButtons(userId, replyText);
               setSession(userId, { paymentMethod: 'ecocash' });
               setUserState(userId, 'choose_phone_number');
-            } else if (buttonId === '_other_payment_methods') {
+            }else if (buttonId === '_innbucks') {
+              replyText = 'Choose a payment number:';
+              await paymentNumberButtons(userId, replyText);
+              setSession(userId, { paymentMethod: 'innbucks' });
+              setUserState(userId, 'choose_phone_number');
+            }else if (buttonId === '_other_payment_methods') {
               setSession(userId, { paymentMethod: 'web' });
               await processPayment(session, userId);
             }
@@ -506,7 +513,6 @@ app.post('/webhook', async (req, res) => {
         case 'utilities':
           if (messageType === 'simple_button_message') {
             const { tickets } = await getTicketByPhone(phone);
-            console.log(tickets);
             if (tickets.length == 0) {
               replyText = 'You have no tickets to view event locations.';
               await sendMessage(userId, replyText);
@@ -555,7 +561,6 @@ app.post('/webhook', async (req, res) => {
         case 'send_event_location':
           if (messageType === 'radio_button_message') {
             const {event} = await getEvent(selectionId);
-            console.log(event);
             if (event) {
               await sendLocation(userId, event.event_location.latitude, event.event_location.longitude, event.event_location.location, event.event_location.address);
             } else {
@@ -584,7 +589,8 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
+const port = process.env.STATUS == 'production'  ? process.env.DEV_PORT : process.env.DEV_PORT;
 app.use('*', (req, res) => res.status(404).send('404 Not Found'));
-app.listen(5000, () => {
-  console.log('Webhook is listening on port 5000');
+app.listen(port, () => {
+  console.log(`Webhook is listening on port ${port}`);
 });

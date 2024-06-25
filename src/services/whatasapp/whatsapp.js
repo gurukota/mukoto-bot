@@ -1,5 +1,6 @@
 import WhatsAppCloudAPI from 'whatsappcloudapi_wrapper';
 import dotenv from 'dotenv';
+import axios from 'axios';
 dotenv.config();
 
 const whatsapp = new WhatsAppCloudAPI({
@@ -15,6 +16,7 @@ const sendMessage = async (to, message) => {
     message,
   });
 };
+
 
 const mainMenu = async (username, userId) => {
   await whatsapp.sendSimpleButtons({
@@ -37,31 +39,39 @@ const mainMenu = async (username, userId) => {
   });
 };
 
-export const sendRadioButtons = async (dataArray, headerText, bodyText, footerText, actionTitle, userId, type) => {
+export const sendRadioButtons = async (
+  dataArray,
+  headerText,
+  bodyText,
+  footerText,
+  actionTitle,
+  userId,
+  type
+) => {
   const listOfSections = [
     {
       title: 'Hi there!',
       rows: dataArray
         .map((data) => {
           let id, title, description;
-          if(type === 'category') {
+          if (type === 'category') {
             id = data.category_id;
-            title = data.category_name;
-            description = data.category_name;
-          } else if(type === 'event') {
+            title = data.category_name ?? 'No category';
+            description = data.category_name ?? 'No category';
+          } else if (type === 'event') {
             id = data.event_id;
-            title = data.title;
-            description = data.description;
-          } else if(type === 'ticket_type') {
+            title = data.title ?? 'No title';
+            description = data.description ?? 'No description';
+          } else if (type === 'ticket_type') {
             id = data.ticket_type_id;
-            title = data.type_name;
-            description = `${data.price} ${data.currency_code}`;
+            title = data.type_name ?? 'No title';
+            description = `${data.price} ${data.currency_code}` ?? 'No price';
           }
-            return {
+          return {
             id,
-            title: (title).substring(0, 24),
+            title: title.substring(0, 24),
             description,
-            };
+          };
         })
         .slice(0, 10),
     },
@@ -72,7 +82,7 @@ export const sendRadioButtons = async (dataArray, headerText, bodyText, footerTe
     bodyText,
     footerText,
     listOfSections,
-    actionTitle
+    actionTitle,
   });
 };
 
@@ -105,7 +115,6 @@ const purchaseButtons = async (userId, eventId) => {
   });
 };
 
-
 const initiatePurchaseButtons = async (userId, replyText) => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
@@ -131,6 +140,10 @@ const paymentMethodButtons = async (userId, replyText) => {
       {
         title: 'Ecocash',
         id: '_ecocash',
+      },
+      {
+        title: 'InnBucks',
+        id: '_innbucks',
       },
       {
         title: 'Other',
@@ -168,7 +181,11 @@ const ticketTypeButton = async (userId, ticketTypes) => {
   const listOfButtons = ticketTypes
     .map((type) => {
       return {
-        title: (`${type.type_name} - ${type.price} ${type.currency_code}`).substring(0, 20),
+        title:
+          `${type.type_name} - ${type.price} ${type.currency_code}`.substring(
+            0,
+            20
+          ),
         id: type.ticket_type_id,
       };
     })
@@ -209,20 +226,69 @@ const generateQRCode = async (text) => {
 const sendDocument = async (caption, filePath, userId) => {
   await whatsapp.sendDocument({
     recipientPhone: userId,
-    caption,
+    caption: caption.toLowerCase(),
     mime_type: 'application/pdf',
     file_path: filePath,
   });
 };
 
-export const sendLocation = async (userId, latitude, longitude, name, address) => {
+export const sendLocation = async (
+  userId,
+  latitude,
+  longitude,
+  name,
+  address
+) => {
   await whatsapp.sendLocation({
     recipientPhone: userId,
     latitude,
     longitude,
-    name, 
-    address
+    name,
+    address,
   });
+};
+
+export const sendUrlButton = async (recipientPhone, headerText, bodyText, footerText, messageText, buttonUrl) => {
+  try {
+    const response = await axios({
+      method: 'post',
+      url: `https://graph.facebook.com/v19.0/${process.env.WA_PHONE_NUMBER_ID}/messages`,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
+      },
+      data: {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: recipientPhone,
+        type: 'interactive',
+        interactive: {
+          type: 'cta_url',
+          header: {
+            type: "text",
+            text: headerText,
+          },
+          body: {
+            text: bodyText,
+          },
+          footer: {
+            text: footerText,
+          },
+          action: {
+                name: 'cta_url',
+                parameters: {
+                  display_text: messageText,
+                  url: buttonUrl,
+                }
+
+          },
+        },
+      },
+    });
+    console.log(response);
+  } catch (error) {
+    console.error('Error sending message:', error);
+  }
 }
 
 export {
