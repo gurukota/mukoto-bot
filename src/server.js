@@ -18,8 +18,8 @@ import {
   sendButtons,
   sendLocation,
 } from './services/whatasapp/whatsapp.js';
-// import { processMessage } from './services/nlp/intents.js';
-import { getUserState, setUserState, userStates } from './config/state.js';
+
+import { getUserState, setUserState } from './config/state.js';
 import { getSession, setSession } from './config/session.js';
 import {
   searchEvents,
@@ -32,9 +32,11 @@ import {
   getTicketByPhone,
   getEventCategories,
   getEventsByCategory,
+  getTicketsByPhoneAndEvent,
 } from './utils/api.js';
 import dotenv from 'dotenv';
 import { processPayment } from './utils/payment.js';
+import { generateTicket } from './utils/ticket.js';
 dotenv.config();
 
 const app = express();
@@ -83,7 +85,8 @@ app.post('/webhook', async (req, res) => {
       // Check in a ticket
       if (validate(userMessage) && version(userMessage) === 4) {
         const user = await getUserByPhone(phone);
-        if (!user.can_approve_tickets) {
+        console.log({ user });
+        if (user.can_approve_tickets) {
           const checkTicket = await checkTicketByQRCode(userMessage);
           if (!checkTicket.checked_in) {
             replyText = `Ticket has been checked in successfully.`;
@@ -119,7 +122,7 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'choose_option':
-          if (messageType == 'simple_button_message') { 
+          if (messageType == 'simple_button_message') {
             if (buttonId === '_find_event') {
               replyText = 'Choose how you would like to find an event:';
               const listButtons = [
@@ -176,7 +179,7 @@ app.post('/webhook', async (req, res) => {
                 replyText = 'Ticket(s) not found. Please try again.';
                 await sendMessage(userId, replyText);
                 setUserState(userId, 'menu');
-                setUserState(userId, 'choose_option'); 
+                setUserState(userId, 'choose_option');
               }
               // setUserState(userId, 'view_or_resend_tickets');
             } else if (buttonId === '_utilities') {
@@ -200,22 +203,24 @@ app.post('/webhook', async (req, res) => {
 
         case 'resend_ticket':
           if (messageType === 'radio_button_message') {
-            const data = await getTicketByPhone(phone);
-            if (data) {
-              for (const ticket of data.tickets) {
+            const data = await getTicketsByPhoneAndEvent(selectionId, phone);
+            for (const ticket of data.tickets) {
+              const generatedTicket = await generateTicket(ticket);
+              if (generatedTicket) {
                 await sendDocument(
-                  ticket.name_on_ticket,
-                  path.join(__dirname, '..', 'downloads', `${ticket.name_on_ticket}.pdf`),
+                  generatedTicket.pdfName.toLocaleLowerCase(),
+                  generatedTicket.pdfFileName,
                   userId
                 );
+                await mainMenu(userName, userId);
+                setUserState(userId, 'choose_option');
+              } else {
+                replyText = 'Tickets not found. Please try again.';
+                await sendMessage(userId, replyText);
+                await mainMenu(userName, userId);
+                setUserState(userId, 'choose_option');
               }
-            } else {
-              replyText = 'Tickets not found. Please try again.';
-              await sendMessage(userId, replyText);
-              await mainMenu(userName, userId);
-              setUserState(userId, 'choose_option');
             }
-            setUserState(userId, 'choosen_event_options');
           } else {
             replyText = 'You have not selected any event. Please try again.';
             await sendMessage(userId, replyText);
@@ -265,8 +270,7 @@ app.post('/webhook', async (req, res) => {
         case 'search_event':
           const events = await searchEvents(userMessage);
           if (!events) {
-            replyText =
-              'No events found for your search. Please try again';
+            replyText = 'No events found for your search. Please try again';
             const listButtons = [
               {
                 title: 'Yes',
@@ -343,8 +347,9 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'radio_button_message') {
             const { event } = await getEvent(selectionId);
             if (event) {
-
-              const formattedDate = moment(event.event_start).format('dddd, MMMM Do YYYY, h:mm:ss a');
+              const formattedDate = moment(event.event_start).format(
+                'dddd, MMMM Do YYYY, h:mm:ss a'
+              );
               let text = `*${event.title.trim()}*\n`;
               text += `*${event.description.trim()}*`;
               text += `\n*${formattedDate}*`;
@@ -364,12 +369,13 @@ app.post('/webhook', async (req, res) => {
           } else {
             replyText = 'Select an event from the list. Please try again.';
             await sendMessage(userId, replyText);
-            setUserState(userId, 'menu');
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
           }
           break;
 
         case 'choosen_event_options':
-          if(messageType === 'simple_button_message'){
+          if (messageType === 'simple_button_message') {
             if (buttonId === '_purchase') {
               const ticketTypes = await getTicketTypes(session.event.id);
               if (ticketTypes.length > 0) {
@@ -434,8 +440,9 @@ app.post('/webhook', async (req, res) => {
         case 'enter_ticket_quantity':
           const quantity = parseInt(userMessage);
           if (isNaN(quantity) || quantity < 1 || quantity > 10) {
-            if(quantity > 10){
-              replyText = 'You can only purchase a maximum of 10 tickets. Please try again.';
+            if (quantity > 10) {
+              replyText =
+                'You can only purchase a maximum of 10 tickets. Please try again.';
               await sendMessage(userId, replyText);
               replyText = 'Enter a valid number of tickets.';
               await sendMessage(userId, replyText);
@@ -445,11 +452,12 @@ app.post('/webhook', async (req, res) => {
             }
             setUserState(userId, 'enter_ticket_quantity');
           } else {
-          const total = quantity * session.ticketType.price;
-          replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
-          await paymentMethodButtons(userId, replyText);
-          setSession(userId, { total });
-          setUserState(userId, 'choose_payment_method');
+            const total = quantity * session.ticketType.price;
+            replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
+            await paymentMethodButtons(userId, replyText);
+            setSession(userId, { total });
+            setSession(userId, { quantity });
+            setUserState(userId, 'choose_payment_method');
           }
           break;
 
@@ -460,13 +468,16 @@ app.post('/webhook', async (req, res) => {
               await paymentNumberButtons(userId, replyText);
               setSession(userId, { paymentMethod: 'ecocash' });
               setUserState(userId, 'choose_phone_number');
-            }else if (buttonId === '_innbucks') {
+            } else if (buttonId === '_innbucks') {
               replyText = 'Choose a payment number:';
               await paymentNumberButtons(userId, replyText);
               setSession(userId, { paymentMethod: 'innbucks' });
               setUserState(userId, 'choose_phone_number');
-            }else if (buttonId === '_other_payment_methods') {
+            } else if (buttonId === '_other_payment_methods') {
               setSession(userId, { paymentMethod: 'web' });
+              let phoneNumber = userId;
+              phoneNumber = phoneNumber.replace(/^263/, '0');
+              setSession(userId, { phoneNumber });
               await processPayment(session, userId);
             }
           }
@@ -479,7 +490,7 @@ app.post('/webhook', async (req, res) => {
             setSession(userId, { phoneNumber });
             await processPayment(session, userId);
           } else if (buttonId == '_other_payment_number') {
-            replyText = 'Please enter the desired transact number:';
+            replyText = 'Please enter the desired transact number: for example *0771111111*';
             await sendMessage(userId, replyText);
             setUserState(userId, 'other_phone_number');
           } else {
@@ -565,9 +576,15 @@ app.post('/webhook', async (req, res) => {
 
         case 'send_event_location':
           if (messageType === 'radio_button_message') {
-            const {event} = await getEvent(selectionId);
+            const { event } = await getEvent(selectionId);
             if (event) {
-              await sendLocation(userId, event.event_location.latitude, event.event_location.longitude, event.event_location.location, event.event_location.address);
+              await sendLocation(
+                userId,
+                event.event_location.latitude,
+                event.event_location.longitude,
+                event.event_location.location,
+                event.event_location.address
+              );
             } else {
               replyText = 'Event not found. Please try again.';
               await sendMessage(userId, replyText);
@@ -594,7 +611,10 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
-const port = process.env.STATUS == 'production'  ? process.env.PROD_PORT : process.env.DEV_PORT;
+const port =
+  process.env.STATUS == 'production'
+    ? process.env.PROD_PORT
+    : process.env.DEV_PORT;
 app.use('*', (req, res) => res.status(404).send('404 Not Found'));
 app.listen(port, () => {
   console.log(`Webhook is listening on port ${port}`);
