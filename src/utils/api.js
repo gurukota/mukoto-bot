@@ -90,9 +90,19 @@ export const checkTicketByQRCode = async (qrCode) => {
     console.error(error);
   }
 }
+
 export const getTicketByPhone = async (phone) => {
   try {
     const response = await apiClient.get(`/tickets/${phone}/phone`);
+    return response.data;
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const getTicketsByPhoneAndEvent = async (event, phone) => {
+  try {
+    const response = await apiClient.get(`events/${event}/phone/${phone}/tickets`);
     return response.data;
   } catch (error) {
     console.error(error);
@@ -111,6 +121,16 @@ export const getEventsByCategory = async (category) => {
 export const getEventCategories = async () => {
   try {
     const response = await apiClient.get('/eventcategories');
+    return response.data;
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+
+export const getTicketsByEvent = async (eventId) => {
+  try {
+    const response = await apiClient.get(`/events/${eventId}/tickets`);
     return response.data;
   } catch (error) {
     console.error(error);
