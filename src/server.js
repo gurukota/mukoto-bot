@@ -204,7 +204,6 @@ app.post('/webhook', async (req, res) => {
         case 'resend_ticket':
           if (messageType === 'radio_button_message') {
             const data = await getTicketsByPhoneAndEvent(selectionId, phone);
-            setUserState(userId, 'paynow');
             for (const ticket of data.tickets) {
               const generatedTicket = await generateTicket(ticket);
               if (generatedTicket) {
@@ -223,8 +222,8 @@ app.post('/webhook', async (req, res) => {
           } else {
             replyText = 'You have not selected any event. Please try again.';
             await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            setUserState(userId, 'choose_option');
+            // await mainMenu(userName, userId);
+            // setUserState(userId, 'choose_option');
           }
           await mainMenu(userName, userId);
           setUserState(userId, 'choose_option');
