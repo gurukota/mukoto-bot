@@ -24,6 +24,7 @@ paynow.returnUrl =
 
 
 export const processPayment = async (session, userId) => {
+  console.log(session.phoneNumber);
   const phone = session.phoneNumber;
   const username = session.userName;
   const paymentMethod = session.paymentMethod;
@@ -60,7 +61,7 @@ const handlePaymentResponse = async (
     return;
   }
   if (paymentMethod == 'innbucks') {
-    await handleInnbucksPayment(response, session, userId);
+    await handleInnbucksPayment(response, userId);
   }
   if (paymentMethod == 'web') {
     await handleWebPayment(response, userId);
@@ -79,6 +80,7 @@ const handlePaymentResponse = async (
 };
 
 const handleInnbucksPayment = async (response, userId) => {
+  console.log(response, userId);
   const authCode = response.innbucks_info[0].authorizationcode;
   const spacedAuthCode = authCode.toString().replace(/(\d{3})(?=\d)/g, '$1 ');
   const deepLink = response.innbucks_info[0].deep_link_url;

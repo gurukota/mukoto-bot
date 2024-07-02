@@ -212,8 +212,6 @@ app.post('/webhook', async (req, res) => {
                   generatedTicket.pdfFileName,
                   userId
                 );
-                await mainMenu(userName, userId);
-                setUserState(userId, 'choose_option');
               } else {
                 replyText = 'Tickets not found. Please try again.';
                 await sendMessage(userId, replyText);
@@ -227,6 +225,8 @@ app.post('/webhook', async (req, res) => {
             await mainMenu(userName, userId);
             setUserState(userId, 'choose_option');
           }
+          await mainMenu(userName, userId);
+          setUserState(userId, 'choose_option');
           break;
         case 'find_event':
           if (messageType == 'simple_button_message') {
