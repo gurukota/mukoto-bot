@@ -204,6 +204,7 @@ app.post('/webhook', async (req, res) => {
         case 'resend_ticket':
           if (messageType === 'radio_button_message') {
             const data = await getTicketsByPhoneAndEvent(selectionId, phone);
+            setUserState(userId, 'paynow');
             for (const ticket of data.tickets) {
               const generatedTicket = await generateTicket(ticket);
               if (generatedTicket) {
