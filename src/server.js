@@ -207,6 +207,7 @@ app.post('/webhook', async (req, res) => {
             for (const ticket of data.tickets) {
               const generatedTicket = await generateTicket(ticket);
               if (generatedTicket) {
+                setUserState(userId, 'paynow');
                 await sendDocument(
                   generatedTicket.pdfName.toLocaleLowerCase(),
                   generatedTicket.pdfFileName,
@@ -215,15 +216,13 @@ app.post('/webhook', async (req, res) => {
               } else {
                 replyText = 'Tickets not found. Please try again.';
                 await sendMessage(userId, replyText);
-                await mainMenu(userName, userId);
-                setUserState(userId, 'choose_option');
               }
             }
           } else {
             replyText = 'You have not selected any event. Please try again.';
             await sendMessage(userId, replyText);
-            // await mainMenu(userName, userId);
-            // setUserState(userId, 'choose_option');
+            await mainMenu(userName, userId);
+            setUserState(userId, 'choose_option');
           }
           await mainMenu(userName, userId);
           setUserState(userId, 'choose_option');
