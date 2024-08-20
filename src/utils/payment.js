@@ -24,7 +24,7 @@ paynow.returnUrl =
 
 
 export const processPayment = async (session, userId) => {
-  console.log(session.phoneNumber);
+  console.log(session);
   const phone = session.phoneNumber;
   const username = session.userName;
   const paymentMethod = session.paymentMethod;
