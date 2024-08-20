@@ -36,7 +36,7 @@ export const processPayment = async (session, userId) => {
     const payment = paynow.createPayment(username, email);
     payment.add(eventName, price);
     let response;
-    if (paymentMethod == 'ecocash' || paymentMethod == 'innbucks') {
+    if (paymentMethod === 'ecocash' || paymentMethod === 'innbucks') {
       response = await paynow.sendMobile(payment, phone, paymentMethod);
     } else {
       response = await paynow.send(payment);
