@@ -32,7 +32,6 @@ import {
   getTicketByPhone,
   getEventCategories,
   getEventsByCategory,
-  getTicketsByPhoneAndEvent,
 } from './utils/api.js';
 import dotenv from 'dotenv';
 import { processPayment } from './utils/payment.js';
@@ -77,7 +76,6 @@ app.post('/webhook', async (req, res) => {
       const messageType = data.message.type;
       const buttonId = data.message.button_reply?.id;
       const selectionId = data.message.list_reply?.id;
-      const __dirname = path.dirname(fileURLToPath(import.meta.url));
       console.log(userId);
 
       setSession(userId, { userName });
@@ -143,15 +141,16 @@ app.post('/webhook', async (req, res) => {
               await sendMessage(userId, replyText);
               setUserState(userId, 'find_event_by_category');
             } else if (buttonId === '_view_resend_ticket') {
-              const data = await getTicketByPhone(phone);
+              const tickets = await getTicketByPhone(phone);
+              setSession(userId, { tickets });
               const processedEventIds = new Set();
               const headerText = `#Mukoto Events🚀`;
               const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select Event';
               const eventsArray = [];
-              if (data.tickets.length !== 0) {
-                for (const ticket of data.tickets) {
+              if (tickets.length !== 0) {
+                for (const ticket of tickets) {
                   if (!processedEventIds.has(ticket.event_id)) {
                     setUserState(userId, 'paynow');
                     const eventData = await getEvent(ticket.event_id);
@@ -203,8 +202,9 @@ app.post('/webhook', async (req, res) => {
 
         case 'resend_ticket':
           if (messageType === 'radio_button_message') {
-            const data = await getTicketsByPhoneAndEvent(selectionId, phone);
-            for (const ticket of data.tickets) {
+            const tickets = session.tickets;
+            const filteredTickets = tickets.filter(ticket => ticket.event_id === selectionId);
+            for (const ticket of filteredTickets) {
               const generatedTicket = await generateTicket(ticket);
               if (generatedTicket) {
                 setUserState(userId, 'paynow');
@@ -421,7 +421,6 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'radio_button_message') {
             const ticketTypeId = selectionId;
             const ticketType = await getTicketType(
-              session.event.id,
               ticketTypeId
             );
             replyText = `You have selected ${ticketType.type_name} ticket. How many tickets do you want to buy?`;

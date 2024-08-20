@@ -153,9 +153,8 @@ const processTicketPurchase = async (session) => {
     payment_status: 'paid',
   };
 
-  const response = await createTicket(ticketData, session.event.id);
+  return  createTicket(ticketData);
 
-  return response;
 };
 
 const processSuccessfulPayment = async (session, userId) => {

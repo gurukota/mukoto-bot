@@ -5,16 +5,11 @@ dotenv.config();
 const apiClient = axios.create({
   baseURL: process.env.MUKOTO_API_URL,
   timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.API_KEY,
+  },
 });
-
-export const getEvents = async () => {
-    try {
-        const response = await apiClient.get('/events');
-        return response.data;
-    } catch (error) {
-        console.error(error);
-    }
-};
 
 export const searchEvents = async (query) => {
   try {
@@ -34,9 +29,9 @@ export const getEvent = async (id) => {
   }
 };
 
-export const createTicket = async (data, eventId) => {
+export const createTicket = async (data) => {
   try {
-    const response = await apiClient.post(`events/${eventId}/tickets`, data);
+    const response = await apiClient.post(`tickets`, data);
     return response.data;
   } catch (error) {
     console.error(error);
@@ -49,24 +44,24 @@ export const getTicketTypes = async (eventId) => {
     const response = await apiClient.get(`/events/${eventId}/ticket-types`);
     return response.data;
   } catch (error) {
-    // console.error(error);
+    console.error(error);
   }
 
 }
 
-export const getTicketType = async (id, eventId) => {
+export const getTicketType = async (id) => {
   try {
-    const response = await apiClient.get(`/events/${id}/ticket-types/${eventId}`);
+    const response = await apiClient.get(`ticket-types/${id}`);
     return response.data;
   } catch (error) {
-    // console.error(error);
+    console.error(error);
   }
 
 }
 
 export const getUserByPhone = async (phone) => {
   try {
-    const response = await apiClient.get(`/users/phone/${phone}`);
+    const response = await apiClient.get(`/phone/${phone}/users`);
     return response.data;
   } catch (error) {
     console.error(error);
@@ -93,16 +88,7 @@ export const checkTicketByQRCode = async (qrCode) => {
 
 export const getTicketByPhone = async (phone) => {
   try {
-    const response = await apiClient.get(`/tickets/${phone}/phone`);
-    return response.data;
-  } catch (error) {
-    console.error(error);
-  }
-};
-
-export const getTicketsByPhoneAndEvent = async (event, phone) => {
-  try {
-    const response = await apiClient.get(`events/${event}/phone/${phone}/tickets`);
+    const response = await apiClient.get(`/phone/${phone}/tickets`);
     return response.data;
   } catch (error) {
     console.error(error);
@@ -111,7 +97,7 @@ export const getTicketsByPhoneAndEvent = async (event, phone) => {
 
 export const getEventsByCategory = async (category) => {
   try {
-    const response = await apiClient.get(`/events/category/${category}`);
+    const response = await apiClient.get(`/category/${category}/events`);
     return response.data;
   } catch (error) {
     console.error(error);
@@ -120,7 +106,7 @@ export const getEventsByCategory = async (category) => {
 
 export const getEventCategories = async () => {
   try {
-    const response = await apiClient.get('/eventcategories');
+    const response = await apiClient.get('/categories');
     return response.data;
   } catch (error) {
     console.error(error);
