@@ -376,6 +376,7 @@ app.post('/webhook', async (req, res) => {
         case 'choosen_event_options':
           if (messageType === 'simple_button_message') {
             if (buttonId === '_purchase') {
+              console.log(session);
               const ticketTypes = await getTicketTypes(session.event.id);
               if (ticketTypes.length > 0) {
                 const headerText = `#Mukoto Events🚀`;
