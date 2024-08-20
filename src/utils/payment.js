@@ -25,12 +25,12 @@ paynow.returnUrl =
 
 export const processPayment = async (session, userId) => {
   console.log(session);
-  const phone = session.phoneNumber;
+  const phone = '0771111111'; //session.phoneNumber;
   const username = session.userName;
   const paymentMethod = session.paymentMethod;
   const eventName = session.event.title;
   const price = parseInt(session.total);
-  const email = 'purchases@mukoto.co.zw';
+  const email = 'simbarashedixon@gmail.com'; //'purchases@mukoto.co.zw';
 
   try {
     const payment = paynow.createPayment(username, email);

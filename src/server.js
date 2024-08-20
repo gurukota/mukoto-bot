@@ -527,6 +527,7 @@ app.post('/webhook', async (req, res) => {
         case 'utilities':
           if (messageType === 'simple_button_message') {
             const tickets = await getTicketByPhone(phone);
+            console.log(tickets);
             if (tickets.length === 0) {
               replyText = 'You have no tickets to view event locations.';
               await sendMessage(userId, replyText);
