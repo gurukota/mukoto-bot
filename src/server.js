@@ -120,7 +120,7 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'choose_option':
-          if (messageType == 'simple_button_message') {
+          if (messageType === 'simple_button_message') {
             if (buttonId === '_find_event') {
               replyText = 'Choose how you would like to find an event:';
               const listButtons = [
@@ -303,7 +303,6 @@ app.post('/webhook', async (req, res) => {
         case 'find_event_by_category':
           if (messageType === 'radio_button_message') {
             const events = await getEventsByCategory(selectionId);
-            console.log(events);
             if (events.length === 0) {
               replyText =
                 'No events found for this category. Find another event?';
@@ -527,7 +526,6 @@ app.post('/webhook', async (req, res) => {
         case 'utilities':
           if (messageType === 'simple_button_message') {
             const tickets = await getTicketByPhone(phone);
-            console.log(tickets);
             if (tickets.length === 0) {
               replyText = 'You have no tickets to view event locations.';
               await sendMessage(userId, replyText);
@@ -544,7 +542,7 @@ app.post('/webhook', async (req, res) => {
                 if (!processedEventIds.has(ticket.event_id)) {
                   setUserState(userId, 'paynow');
                   const eventData = await getEvent(ticket.event_id);
-                  if (eventData.event.length !== 0) {
+                  if (eventData && eventData.event.length !== 0) {
                     events.push({
                       event_id: ticket.event_id,
                       title: eventData.event.title,

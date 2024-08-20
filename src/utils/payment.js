@@ -24,7 +24,6 @@ paynow.returnUrl =
 
 
 export const processPayment = async (session, userId) => {
-  console.log(session);
   const phone = '0771111111'; //session.phoneNumber;
   const username = session.userName;
   const paymentMethod = session.paymentMethod;
@@ -80,7 +79,6 @@ const handlePaymentResponse = async (
 };
 
 const handleInnbucksPayment = async (response, userId) => {
-  console.log(response, userId);
   const authCode = response.innbucks_info[0].authorizationcode;
   const spacedAuthCode = authCode.toString().replace(/(\d{3})(?=\d)/g, '$1 ');
   const deepLink = response.innbucks_info[0].deep_link_url;
@@ -123,7 +121,7 @@ const pollTransactionWithRetries = async (pollUrl, paymentMethod) => {
     await new Promise((r) => setTimeout(r, delay));
     const transaction = await paynow.pollTransaction(pollUrl);
     console.log(transaction.status);
-    if (transaction.status == 'paid' || transaction.status == 'cancelled') {
+    if (transaction.status === 'paid' || transaction.status === 'cancelled') {
       return transaction;
     }
     retries++;
@@ -137,7 +135,10 @@ const processTicketPurchase = async (session) => {
   const randomString = Math.random().toString(36).substring(2, 7);
   const qrCode = await generateQRCode(qrCodeText);
   const ticketData = {
-    event_id: session.event.id,
+    event_id: session.event.event_id,
+    title: session.event.title,
+    event_start: session.event.event_start,
+    event_end: session.event.event_end,
     name_on_ticket: randomString,
     checked_in: false,
     qr_code: qrCodeText,
@@ -162,7 +163,7 @@ const processSuccessfulPayment = async (session, userId) => {
   await sendMessage(userId, 'Please wait while we process your ticket⏳...');
   for (let i = 0; i < session.quantity; i++) {
     const ticket = await processTicketPurchase(session);
-    if (ticket.purchaser.status == 'paid') {
+    if (ticket.purchaser.status === 'paid') {
       const generatedPDF = await generateTicket(ticket);
       await sendDocument(
         generatedPDF.pdfName.toLocaleLowerCase(),

@@ -9,7 +9,6 @@ import { getEvent } from './api.js';
 
 
 export const generateTicket = async (ticket) => {
-  console.log(ticket);
   const qrCode = await generateQRCode(ticket.qr_code);
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
