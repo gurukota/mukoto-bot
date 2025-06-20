@@ -71,7 +71,34 @@ manager.addDocument('en', 'Do you offer any accessibility services', 'accessibil
     console.log('NLP Model trained and saved.');
 })();
 
-async function processMessage(message) {
+interface NlpResponse {
+    readonly utterance: string;
+    readonly locale: string;
+    readonly language: string;
+    readonly classifications: Array<{
+        readonly intent: string;
+        readonly score: number;
+    }>;
+    readonly intent: string;
+    readonly score: number;
+    readonly domain: string | undefined;
+    readonly sourceEntities: any[];
+    readonly entities: any[];
+    readonly answers: any[];
+    readonly answer: string | undefined;
+    readonly actions: any[];
+    readonly sentiment: {
+        readonly score: number;
+        readonly comparative: number;
+        readonly vote: string;
+        readonly numWords: number;
+        readonly numHits: number;
+        readonly type: string;
+        readonly language: string;
+    };
+}
+
+async function processMessage(message: string): Promise<NlpResponse> {
     return await manager.process('en', message);
 }
 

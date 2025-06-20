@@ -6,9 +6,14 @@ import moment from 'moment';
 import { fileURLToPath } from 'url';
 import { generateQRCode } from '../services/whatasapp/whatsapp.js';
 import { getEvent } from './api.js';
+import { Ticket } from '../types/api.js';
 
+interface TicketResult {
+  pdfName: string;
+  pdfFileName: string;
+}
 
-export const generateTicket = async (ticket) => {
+export const generateTicket = async (ticket: Ticket): Promise<TicketResult | null> => {
   const qrCode = await generateQRCode(ticket.qr_code);
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,7 +23,7 @@ export const generateTicket = async (ticket) => {
   const ticketType = ticket.ticket_type;
   const ticketPrice = `USD $${ticket.purchaser.price_paid}`;
   const purchaser = ticket.purchaser.full_name;
-  const venue =  ticket.location.name;
+  const venue = ticket.location.name;
   const organiser = 'Zimbabwe Cricket';
   const eventTitle = ticket.title;
 
@@ -103,9 +108,12 @@ export const generateTicket = async (ticket) => {
     color: rgb(0.5, 0.5, 0.5),
   });
 
-  page.drawText(ticket.name_on_ticket, {
+  // Set ticket info
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  page.drawText(ticket.qr_code, {
     x: 120,
-    y: height - 180,
+    y: height - 190,
     size: regularSize,
     font: regularFont,
     color: rgb(0, 0, 0),
@@ -113,106 +121,126 @@ export const generateTicket = async (ticket) => {
 
   page.drawText(ticketType, {
     x: 320,
-    y: height - 180,
+    y: height - 190,
     size: regularSize,
-    font: regularFont,
+    font: boldFont,
     color: rgb(0, 0, 0),
   });
 
   page.drawText(purchaser, {
     x: 520,
-    y: height - 180,
+    y: height - 190,
     size: regularSize,
-    font: regularFont,
+    font: boldFont,
     color: rgb(0, 0, 0),
   });
 
   page.drawText(ticketPrice, {
     x: 720,
-    y: height - 180,
+    y: height - 190,
     size: regularSize,
-    font: regularFont,
+    font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Set venue info
-  page.drawText('Venue:', {
+  page.drawText('VENUE', {
     x: 120,
-    y: height - 240,
+    y: height - 250,
     size: regularSize,
     font: regularFont,
     color: rgb(0.5, 0.5, 0.5),
   });
 
+  page.drawText('ORGANISER', {
+    x: 520,
+    y: height - 250,
+    size: regularSize,
+    font: regularFont,
+    color: rgb(0.5, 0.5, 0.5),
+  });
 
+  // Set more info
   page.drawText(venue, {
     x: 120,
-    y: height - 260,
+    y: height - 280,
     size: regularSize,
-    font: regularFont,
+    font: boldFont,
     color: rgb(0, 0, 0),
-  });
-
-  page.drawText('Organizer', {
-    x: 650,
-    y: height - 240,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
   });
 
   page.drawText(organiser, {
-    x: 650,
-    y: height - 260,
+    x: 520,
+    y: height - 280,
     size: regularSize,
-    font: regularFont,
+    font: boldFont,
     color: rgb(0, 0, 0),
   });
 
+  // Set QR Code
+  try {
+    const qrCodeImageBytes = await fetch(qrCode).then((res) => res.arrayBuffer());
+    const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes);
 
-  page.drawRectangle({
-    x: xMargin,
-    y: 0,
-    width: width - xMargin * 2,
-    height: 380,
-    color: rgb(0.8, 0.8, 0.8),
-    opacity,
-  });
+    // Draw QR Code
+    const qrCodeHeight = 180;
+    const qrCodeWidth = 180;
+    const qrCodeX = (width - qrCodeWidth) / 2;
+    const qrCodeY = height - 400;
 
-  const response = await fetch(qrCode);
-  const qrCodeArrayBuffer = await response.arrayBuffer();
-  const qrImage = await pdfDoc.embedPng(qrCodeArrayBuffer);
+    page.drawImage(qrCodeImage, {
+      x: qrCodeX,
+      y: qrCodeY,
+      width: qrCodeWidth,
+      height: qrCodeHeight,
+    });
+  } catch (error) {
+    console.log(error);
+  }
 
-
-  const qrDims = qrImage.scale(0.5);
-  page.drawImage(qrImage, {
+  // Set terms & conditions
+  page.drawText('Terms & Conditions:', {
     x: 120,
-    y: 50,
-    width: qrDims.width,
-    height: qrDims.height,
-  });
-
-  
-  page.drawText('Check in for this event', {
-    x: 450,
-    y: 250,
-    size: 32,
-    font: titleFont,
+    y: height - 450,
+    size: 14,
+    font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  page.drawText('Scan this QR code at the event to check in', {
-    x: 450,
-    y: 210,
-    size: 24,
-    font: regularFont,
-    color: rgb(0, 0, 0),
-  });
+  page.drawText(
+    'All ticket sales are final. No refunds or exchanges. Valid for entry only in accordance with event rules.',
+    {
+      x: 120,
+      y: height - 470,
+      size: 10,
+      font: regularFont,
+      color: rgb(0, 0, 0),
+    }
+  );
 
-  // Save PDF
+  // Set footer message
+  page.drawText(
+    'This ticket is void if altered, and is a license to enter the specified event, subject to the terms, conditions and rules of the venue and organizer.',
+    {
+      x: 120,
+      y: height - 600,
+      size: 10,
+      font: regularFont,
+      color: rgb(0.3, 0.3, 0.3),
+    }
+  );
+
+  const path_ext = path.join(__dirname, `../../downloads/${ticket.qr_code}.pdf`);
   const pdfBytes = await pdfDoc.save();
-  const pdfFileName = path.join(__dirname, '..', '..', 'downloads', `${purchaser}${ticket.name_on_ticket}.pdf`);
-  const pdfName = `${purchaser}${ticket.name_on_ticket}.pdf`;
-  fs.writeFileSync(pdfFileName, pdfBytes);
-  return { pdfName, pdfFileName };
+
+  try {
+    fs.writeFileSync(path_ext, pdfBytes);
+    console.log('PDF Created!');
+    return {
+      pdfName: ticket.title,
+      pdfFileName: path_ext,
+    };
+  } catch (err) {
+    console.log('Error creating PDF:', err);
+    return null;
+  }
 };

@@ -1,24 +1,29 @@
 import WhatsAppCloudAPI from 'whatsappcloudapi_wrapper';
 import dotenv from 'dotenv';
 import axios from 'axios';
+// Define SimpleButton interface here since whatsapp.d.ts is not recognized as a module
+export interface SimpleButton {
+  title: string;
+  id: string;
+}
+
 dotenv.config();
 
 const whatsapp = new WhatsAppCloudAPI({
-  accessToken: process.env.WA_ACCESS_TOKEN,
-  senderPhoneNumberId: process.env.WA_PHONE_NUMBER_ID,
-  WABA_ID: process.env.WA_BUSINESS_ID,
-  graphAPIVersion: process.env.WA_API_VERSION,
+  accessToken: process.env.WA_ACCESS_TOKEN || '',
+  senderPhoneNumberId: process.env.WA_PHONE_NUMBER_ID || '',
+  WABA_ID: process.env.WA_BUSINESS_ID || '',
+  graphAPIVersion: process.env.WA_API_VERSION || '',
 });
 
-const sendMessage = async (to, message) => {
+const sendMessage = async (to: string, message: string): Promise<void> => {
   await whatsapp.sendText({
     recipientPhone: to,
     message,
   });
 };
 
-
-const mainMenu = async (username, userId) => {
+const mainMenu = async (username: string, userId: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     message: `Hey ${username}, I'm Mukoto😎, your personal event ticketing assistant🚀. How can I help you today?`,
     recipientPhone: userId,
@@ -40,20 +45,20 @@ const mainMenu = async (username, userId) => {
 };
 
 export const sendRadioButtons = async (
-  dataArray,
-  headerText,
-  bodyText,
-  footerText,
-  actionTitle,
-  userId,
-  type
-) => {
+  dataArray: any[],
+  headerText: string,
+  bodyText: string,
+  footerText: string,
+  actionTitle: string,
+  userId: string,
+  type: 'category' | 'event' | 'ticket_type'
+): Promise<void> => {
   const listOfSections = [
     {
       title: 'Hi there!',
       rows: dataArray
         .map((data) => {
-          let id, title, description;
+          let id: string, title: string, description: string;
           if (type === 'category') {
             id = data.category_id;
             title = data.category_name ?? 'No category';
@@ -65,7 +70,11 @@ export const sendRadioButtons = async (
           } else if (type === 'ticket_type') {
             id = data.ticket_type_id;
             title = data.type_name ?? 'No title';
-            description = `${data.price} ${data.currency_code}` ?? 'No price';
+            description = data.price && data.currency_code ? `${data.price} ${data.currency_code}` : 'No price';
+          } else {
+            id = '';
+            title = '';
+            description = '';
           }
           return {
             id,
@@ -86,7 +95,7 @@ export const sendRadioButtons = async (
   });
 };
 
-const sendImage = async (userId, imageUrl, text) => {
+const sendImage = async (userId: string, imageUrl: string, text: string): Promise<void> => {
   await whatsapp.sendImage({
     recipientPhone: userId,
     url: imageUrl,
@@ -94,14 +103,14 @@ const sendImage = async (userId, imageUrl, text) => {
   });
 };
 
-const purchaseButtons = async (userId, eventId) => {
+const purchaseButtons = async (userId: string, eventId: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: 'Here is the event, what do you want to do next?',
     listOfButtons: [
       {
         title: 'Purchase Ticket',
-        id: `_purchase`,
+        id: '_purchase',
       },
       {
         title: 'Find More Events',
@@ -115,7 +124,7 @@ const purchaseButtons = async (userId, eventId) => {
   });
 };
 
-const initiatePurchaseButtons = async (userId, replyText) => {
+const initiatePurchaseButtons = async (userId: string, replyText: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
@@ -132,7 +141,7 @@ const initiatePurchaseButtons = async (userId, replyText) => {
   });
 };
 
-const paymentMethodButtons = async (userId, replyText) => {
+const paymentMethodButtons = async (userId: string, replyText: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
@@ -153,14 +162,19 @@ const paymentMethodButtons = async (userId, replyText) => {
   });
 };
 
-export const sendButtons = async (userId, replyText, listOfButtons) => {
+export const sendButtons = async (
+  userId: string, 
+  replyText: string, 
+  listOfButtons: SimpleButton[]
+): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
     listOfButtons,
   });
 };
-const paymentNumberButtons = async (userId, replyText) => {
+
+const paymentNumberButtons = async (userId: string, replyText: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
@@ -177,7 +191,7 @@ const paymentNumberButtons = async (userId, replyText) => {
   });
 };
 
-const ticketTypeButton = async (userId, ticketTypes) => {
+const ticketTypeButton = async (userId: string, ticketTypes: any[]): Promise<void> => {
   const listOfButtons = ticketTypes
     .map((type) => {
       return {
@@ -198,7 +212,7 @@ const ticketTypeButton = async (userId, ticketTypes) => {
   });
 };
 
-const eventFallback = async (userId) => {
+const eventFallback = async (userId: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: 'No event found. Do you want to search for another event?',
@@ -215,15 +229,15 @@ const eventFallback = async (userId) => {
   });
 };
 
-const generateQRCode = async (text) => {
-  let result = await whatsapp.createQRCodeMessage({
+const generateQRCode = async (text: string): Promise<string> => {
+  const result = await whatsapp.createQRCodeMessage({
     message: text,
     imageType: 'png',
   });
   return result.data.qr_image_url;
 };
 
-const sendDocument = async (caption, filePath, userId) => {
+const sendDocument = async (caption: string, filePath: string, userId: string): Promise<void> => {
   await whatsapp.sendDocument({
     recipientPhone: userId,
     caption: caption.toLowerCase(),
@@ -233,12 +247,12 @@ const sendDocument = async (caption, filePath, userId) => {
 };
 
 export const sendLocation = async (
-  userId,
-  latitude,
-  longitude,
-  name,
-  address
-) => {
+  userId: string,
+  latitude: number,
+  longitude: number,
+  name: string,
+  address: string
+): Promise<void> => {
   await whatsapp.sendLocation({
     recipientPhone: userId,
     latitude,
@@ -248,7 +262,14 @@ export const sendLocation = async (
   });
 };
 
-export const sendUrlButton = async (recipientPhone, headerText, bodyText, footerText, messageText, buttonUrl) => {
+export const sendUrlButton = async (
+  recipientPhone: string, 
+  headerText: string, 
+  bodyText: string, 
+  footerText: string, 
+  messageText: string, 
+  buttonUrl: string
+): Promise<void> => {
   try {
     const response = await axios({
       method: 'post',
@@ -289,7 +310,7 @@ export const sendUrlButton = async (recipientPhone, headerText, bodyText, footer
   } catch (error) {
     console.error('Error sending message:', error);
   }
-}
+};
 
 export {
   sendMessage,

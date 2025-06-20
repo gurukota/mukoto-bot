@@ -1,8 +1,6 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import bodyParser from 'body-parser';
 import { validate, version } from 'uuid';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import moment from 'moment';
 
 import {
@@ -17,6 +15,7 @@ import {
   paymentNumberButtons,
   sendButtons,
   sendLocation,
+  SimpleButton
 } from './services/whatasapp/whatsapp.js';
 
 import { getUserState, setUserState } from './config/state.js';
@@ -36,13 +35,16 @@ import {
 import dotenv from 'dotenv';
 import { processPayment } from './utils/payment.js';
 import { generateTicket } from './utils/ticket.js';
+import { UserSession, UserState } from './types/session.js';
+import { Event, EventCategory, User, Ticket, EventResponse } from './types/api.js';
+
 dotenv.config();
 
 const app = express();
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.get('/webhook', (req, res) => {
+app.get('/webhook', function(req: Request, res: Response) {
   try {
     let mode = req.query['hub.mode'];
     let token = req.query['hub.verify_token'];
@@ -64,7 +66,7 @@ app.get('/webhook', (req, res) => {
   }
 });
 
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', async (req: Request, res: Response) => {
   try {
     const data = whatsapp.parseMessage(req.body);
     let replyText = '';
@@ -81,7 +83,7 @@ app.post('/webhook', async (req, res) => {
       setSession(userId, { userName });
 
       // Check in a ticket
-      if (validate(userMessage) && version(userMessage) === 4) {
+      if (typeof userMessage === 'string' && validate(userMessage) && version(userMessage) === 4) {
         const user = await getUserByPhone(phone);
         console.log({ user });
         if (user.can_approve_tickets) {
@@ -109,7 +111,7 @@ app.post('/webhook', async (req, res) => {
       }
 
       const session = getSession(userId);
-      const userState = getUserState(userId);
+      const userState = getUserState(userId) as UserState;
 
       console.log({ userState });
 
@@ -123,7 +125,7 @@ app.post('/webhook', async (req, res) => {
           if (messageType === 'simple_button_message') {
             if (buttonId === '_find_event') {
               replyText = 'Choose how you would like to find an event:';
-              const listButtons = [
+              const listButtons: SimpleButton[] = [
                 {
                   title: 'Find by search',
                   id: '_event_by_search',
@@ -143,12 +145,12 @@ app.post('/webhook', async (req, res) => {
             } else if (buttonId === '_view_resend_ticket') {
               const tickets = await getTicketByPhone(phone);
               setSession(userId, { tickets });
-              const processedEventIds = new Set();
+              const processedEventIds = new Set<string>();
               const headerText = `#Mukoto Events🚀`;
               const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select Event';
-              const eventsArray = [];
+              const eventsArray: { event_id: string; title: string; description: string }[] = [];
               if (tickets.length !== 0) {
                 for (const ticket of tickets) {
                   if (!processedEventIds.has(ticket.event_id)) {
@@ -180,10 +182,9 @@ app.post('/webhook', async (req, res) => {
                 setUserState(userId, 'menu');
                 setUserState(userId, 'choose_option');
               }
-              // setUserState(userId, 'view_or_resend_tickets');
             } else if (buttonId === '_utilities') {
               replyText = 'Choose a utility option:';
-              const listButtons = [
+              const listButtons: SimpleButton[] = [
                 {
                   title: 'Event Location',
                   id: '_event_location',
@@ -202,7 +203,7 @@ app.post('/webhook', async (req, res) => {
 
         case 'resend_ticket':
           if (messageType === 'radio_button_message') {
-            const tickets = session.tickets;
+            const tickets = session.tickets as Ticket[];
             const filteredTickets = tickets.filter(ticket => ticket.event_id === selectionId);
             for (const ticket of filteredTickets) {
               const generatedTicket = await generateTicket(ticket);
@@ -228,7 +229,7 @@ app.post('/webhook', async (req, res) => {
           setUserState(userId, 'choose_option');
           break;
         case 'find_event':
-          if (messageType == 'simple_button_message') {
+          if (messageType === 'simple_button_message') {
             if (buttonId === '_event_by_search') {
               replyText =
                 'Please enter the name or type of event you are interested in:';
@@ -267,46 +268,48 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'search_event':
-          const events = await searchEvents(userMessage);
-          if (!events) {
-            replyText = 'No events found for your search. Please try again';
-            const listButtons = [
-              {
-                title: 'Yes',
-                id: '_find_event',
-              },
-              {
-                title: 'Main Menu',
-                id: '_main_menu',
-              },
-            ];
-            await sendButtons(userId, replyText, listButtons);
-            setUserState(userId, 'event_fallback');
-          } else {
-            const headerText = `#Mukoto Events🚀`;
-            const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
-            const footerText = 'Powered by: Your Address Tech';
-            const actionTitle = 'Select Event';
-            await sendRadioButtons(
-              events,
-              headerText,
-              bodyText,
-              footerText,
-              actionTitle,
-              userId,
-              'event'
-            );
-            setUserState(userId, 'show_event');
+          if (typeof userMessage === 'string') {
+            const events = await searchEvents(userMessage);
+            if (!events) {
+              replyText = 'No events found for your search. Please try again';
+              const listButtons: SimpleButton[] = [
+                {
+                  title: 'Yes',
+                  id: '_find_event',
+                },
+                {
+                  title: 'Main Menu',
+                  id: '_main_menu',
+                },
+              ];
+              await sendButtons(userId, replyText, listButtons);
+              setUserState(userId, 'event_fallback');
+            } else {
+              const headerText = `#Mukoto Events🚀`;
+              const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
+              const footerText = 'Powered by: Your Address Tech';
+              const actionTitle = 'Select Event';
+              await sendRadioButtons(
+                events,
+                headerText,
+                bodyText,
+                footerText,
+                actionTitle,
+                userId,
+                'event'
+              );
+              setUserState(userId, 'show_event');
+            }
           }
           break;
 
         case 'find_event_by_category':
-          if (messageType === 'radio_button_message') {
+          if (messageType === 'radio_button_message' && selectionId) {
             const events = await getEventsByCategory(selectionId);
             if (events.length === 0) {
               replyText =
                 'No events found for this category. Find another event?';
-              const listButtons = [
+              const listButtons: SimpleButton[] = [
                 {
                   title: 'Yes',
                   id: '_find_event',
@@ -342,7 +345,7 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'show_event':
-          if (messageType === 'radio_button_message') {
+          if (messageType === 'radio_button_message' && selectionId) {
             const { event } = await getEvent(selectionId);
             if (event) {
               const formattedDate = moment(event.event_start).format(
@@ -374,7 +377,7 @@ app.post('/webhook', async (req, res) => {
 
         case 'choosen_event_options':
           if (messageType === 'simple_button_message') {
-            if (buttonId === '_purchase') {
+            if (buttonId === '_purchase' && session.event) {
               const ticketTypes = await getTicketTypes(session.event.event_id);
               if (ticketTypes.length > 0) {
                 const headerText = `#Mukoto Events🚀`;
@@ -417,11 +420,9 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'choose_ticket_type':
-          if (messageType === 'radio_button_message') {
+          if (messageType === 'radio_button_message' && selectionId) {
             const ticketTypeId = selectionId;
-            const ticketType = await getTicketType(
-              ticketTypeId
-            );
+            const ticketType = await getTicketType(ticketTypeId);
             replyText = `You have selected ${ticketType.type_name} ticket. How many tickets do you want to buy?`;
             await sendMessage(userId, replyText);
             setSession(userId, { ticketType });
@@ -435,26 +436,30 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'enter_ticket_quantity':
-          const quantity = parseInt(userMessage);
-          if (isNaN(quantity) || quantity < 1 || quantity > 10) {
-            if (quantity > 10) {
-              replyText =
-                'You can only purchase a maximum of 10 tickets. Please try again.';
-              await sendMessage(userId, replyText);
-              replyText = 'Enter a valid number of tickets.';
-              await sendMessage(userId, replyText);
+          if (typeof userMessage === 'string') {
+            const quantity = parseInt(userMessage);
+            if (isNaN(quantity) || quantity < 1 || quantity > 10) {
+              if (quantity > 10) {
+                replyText =
+                  'You can only purchase a maximum of 10 tickets. Please try again.';
+                await sendMessage(userId, replyText);
+                replyText = 'Enter a valid number of tickets.';
+                await sendMessage(userId, replyText);
+              } else {
+                replyText = 'Enter a valid number of tickets.';
+                await sendMessage(userId, replyText);
+              }
+              setUserState(userId, 'enter_ticket_quantity');
             } else {
-              replyText = 'Enter a valid number of tickets.';
-              await sendMessage(userId, replyText);
+              if (session.ticketType) {
+                const total = quantity * session.ticketType.price;
+                replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
+                await paymentMethodButtons(userId, replyText);
+                setSession(userId, { total });
+                setSession(userId, { quantity });
+                setUserState(userId, 'choose_payment_method');
+              }
             }
-            setUserState(userId, 'enter_ticket_quantity');
-          } else {
-            const total = quantity * session.ticketType.price;
-            replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
-            await paymentMethodButtons(userId, replyText);
-            setSession(userId, { total });
-            setSession(userId, { quantity });
-            setUserState(userId, 'choose_payment_method');
           }
           break;
 
@@ -481,12 +486,12 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'choose_phone_number':
-          if (buttonId == '_use_this_number') {
+          if (buttonId === '_use_this_number') {
             let phoneNumber = userId;
             phoneNumber = phoneNumber.replace(/^263/, '0');
             setSession(userId, { phoneNumber });
             await processPayment(session, userId);
-          } else if (buttonId == '_other_payment_number') {
+          } else if (buttonId === '_other_payment_number') {
             replyText = 'Please enter the desired transact number: for example *0771111111*';
             await sendMessage(userId, replyText);
             setUserState(userId, 'other_phone_number');
@@ -499,9 +504,11 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'other_phone_number':
-          let phoneNumber = userMessage;
-          setSession(userId, { phoneNumber });
-          await processPayment(session, userId);
+          if (typeof userMessage === 'string') {
+            let phoneNumber = userMessage;
+            setSession(userId, { phoneNumber });
+            await processPayment(session, userId);
+          }
           break;
 
         case 'event_fallback':
@@ -536,13 +543,13 @@ app.post('/webhook', async (req, res) => {
               const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
               const footerText = 'Powered by: Your Address Tech';
               const actionTitle = 'Select Event';
-              const events = [];
-              const processedEventIds = new Set();
+              const events: { event_id: string; title: string; description: string }[] = [];
+              const processedEventIds = new Set<string>();
               for (const ticket of tickets) {
                 if (!processedEventIds.has(ticket.event_id)) {
                   setUserState(userId, 'paynow');
                   const eventData = await getEvent(ticket.event_id);
-                  if (eventData && eventData.event.length !== 0) {
+                  if (eventData && eventData.event) {
                     events.push({
                       event_id: ticket.event_id,
                       title: eventData.event.title,
@@ -572,7 +579,7 @@ app.post('/webhook', async (req, res) => {
           break;
 
         case 'send_event_location':
-          if (messageType === 'radio_button_message') {
+          if (messageType === 'radio_button_message' && selectionId) {
             const { event } = await getEvent(selectionId);
             if (event) {
               await sendLocation(
@@ -608,11 +615,13 @@ app.post('/webhook', async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 const port =
-  process.env.STATUS == 'production'
+  process.env.STATUS === 'production'
     ? process.env.PROD_PORT
     : process.env.DEV_PORT;
-app.use('*', (req, res) => res.status(404).send('404 Not Found'));
+    
+app.use('*', (req: Request, res: Response) => res.status(404).send('404 Not Found'));
 app.listen(port, () => {
   console.log(`Webhook is listening on port ${port}`);
 });
