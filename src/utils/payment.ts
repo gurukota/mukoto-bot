@@ -8,7 +8,7 @@ import {
   sendMessage,
   sendDocument,
   sendUrlButton,
-} from '../services/whatasapp/whatsapp.js';
+} from './whatsapp.js';
 import { createTicket } from './api.js';
 import { generateTicket } from './ticket.js';
 import { UserSession } from '../types/session.js';

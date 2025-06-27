@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm"
 
 
 
-export const tblTickets = pgTable("tbl_tickets", {
+export const tickets = pgTable("tbl_tickets", {
 	id: text().primaryKey().notNull(),
 	eventId: text().notNull(),
 	ticketTypeId: text().notNull(),
@@ -31,7 +31,7 @@ export const tblTickets = pgTable("tbl_tickets", {
 		}).onDelete("cascade"),
 ]);
 
-export const tblSelectedCategories = pgTable("tbl_selected_categories", {
+export const selectedCategories = pgTable("tbl_selected_categories", {
 	id: text().primaryKey().notNull(),
 	eventId: text().notNull(),
 	categoryId: text().notNull(),
@@ -49,13 +49,13 @@ export const tblSelectedCategories = pgTable("tbl_selected_categories", {
 		}).onDelete("cascade"),
 ]);
 
-export const tblEventCategories = pgTable("tbl_event_categories", {
+export const eventCategories = pgTable("tbl_event_categories", {
 	id: text().primaryKey().notNull(),
 	categoryName: varchar({ length: 255 }).notNull(),
 	deleted: boolean().default(false).notNull(),
 });
 
-export const tblCustomFields = pgTable("tbl_custom_fields", {
+export const customFields = pgTable("tbl_custom_fields", {
 	customFieldId: bigserial({ mode: "bigint" }).primaryKey().notNull(),
 	ticketId: text().notNull(),
 	label: varchar({ length: 255 }).notNull(),
@@ -68,13 +68,13 @@ export const tblCustomFields = pgTable("tbl_custom_fields", {
 		}).onDelete("cascade"),
 ]);
 
-export const tblCurrency = pgTable("tbl_currency", {
+export const currency = pgTable("tbl_currency", {
 	currencyCode: char({ length: 3 }).primaryKey().notNull(),
 	currencyName: varchar({ length: 100 }).notNull(),
 	deleted: boolean().default(false).notNull(),
 });
 
-export const tblUsers = pgTable("tbl_users", {
+export const users = pgTable("tbl_users", {
 	id: text().primaryKey().notNull(),
 	organiserId: text().notNull(),
 	name: text(),
@@ -98,7 +98,7 @@ export const tblUsers = pgTable("tbl_users", {
 	unique("tbl_users_phoneNumber_unique").on(table.phoneNumber),
 ]);
 
-export const tblOrganisers = pgTable("tbl_organisers", {
+export const organisers = pgTable("tbl_organisers", {
 	id: text().primaryKey().notNull(),
 	name: varchar({ length: 255 }).notNull(),
 	email: varchar({ length: 100 }).notNull(),
@@ -111,7 +111,7 @@ export const tblOrganisers = pgTable("tbl_organisers", {
 	updatedAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
 
-export const tblTicketType = pgTable("tbl_ticket_type", {
+export const ticketType = pgTable("tbl_ticket_type", {
 	id: text().primaryKey().notNull(),
 	eventId: text().notNull(),
 	typeName: varchar({ length: 100 }).notNull(),
@@ -136,7 +136,7 @@ export const tblTicketType = pgTable("tbl_ticket_type", {
 		}),
 ]);
 
-export const tblVerification = pgTable("tbl_verification", {
+export const verification = pgTable("tbl_verification", {
 	id: text().primaryKey().notNull(),
 	identifier: text().notNull(),
 	value: text().notNull(),
@@ -145,7 +145,7 @@ export const tblVerification = pgTable("tbl_verification", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }),
 });
 
-export const tblEvents = pgTable("tbl_events", {
+export const events = pgTable("tbl_events", {
 	id: text().primaryKey().notNull(),
 	organiserId: text().notNull(),
 	title: varchar({ length: 255 }).notNull(),
@@ -179,7 +179,7 @@ export const tblEvents = pgTable("tbl_events", {
 		}).onUpdate("cascade").onDelete("set null"),
 ]);
 
-export const tblAccount = pgTable("tbl_account", {
+export const account = pgTable("tbl_account", {
 	id: text().primaryKey().notNull(),
 	accountId: text("account_id").notNull(),
 	providerId: text("provider_id").notNull(),
@@ -201,7 +201,7 @@ export const tblAccount = pgTable("tbl_account", {
 		}).onDelete("cascade"),
 ]);
 
-export const tblSession = pgTable("tbl_session", {
+export const session = pgTable("tbl_session", {
 	id: text().primaryKey().notNull(),
 	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
 	token: text().notNull(),

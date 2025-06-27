@@ -25,7 +25,7 @@ const sendMessage = async (to: string, message: string): Promise<void> => {
 
 const mainMenu = async (username: string, userId: string): Promise<void> => {
   await whatsapp.sendSimpleButtons({
-    message: `Hey ${username}, I'm Mukoto😎, your personal event ticketing assistant🚀. How can I help you today?`,
+    message: `Hey ${username}, Welcome to Mukoto😎, your personal event ticketing assistant🚀. How can I help you today?`,
     recipientPhone: userId,
     listOfButtons: [
       {

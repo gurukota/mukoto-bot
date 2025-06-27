@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import moment from 'moment';
 import { fileURLToPath } from 'url';
-import { generateQRCode } from '../services/whatasapp/whatsapp.js';
+import { generateQRCode } from './whatsapp.js';
 import { getEvent } from './api.js';
 import { Ticket } from '../types/api.js';
 

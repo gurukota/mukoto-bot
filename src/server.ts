@@ -16,7 +16,7 @@ import {
   sendButtons,
   sendLocation,
   SimpleButton
-} from './services/whatasapp/whatsapp.js';
+} from './utils/whatsapp.js';
 
 import { getUserState, setUserState } from './config/state.js';
 import { getSession, setSession } from './config/session.js';
@@ -44,7 +44,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(express.urlencoded({ extended: false }));
 
-app.get('/webhook', function(req: Request, res: Response) {
+app.get('/webhook', async (req: Request, res: Response) => {
   try {
     let mode = req.query['hub.mode'];
     let token = req.query['hub.verify_token'];
@@ -608,6 +608,9 @@ app.post('/webhook', async (req: Request, res: Response) => {
           await mainMenu(userName, userId);
           setUserState(userId, 'choose_option');
       }
+    } else {
+      console.log('Not a message');
+      
     }
     res.sendStatus(200);
   } catch (error) {
