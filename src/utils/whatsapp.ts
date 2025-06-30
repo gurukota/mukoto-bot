@@ -60,15 +60,15 @@ export const sendRadioButtons = async (
         .map((data) => {
           let id: string, title: string, description: string;
           if (type === 'category') {
-            id = data.category_id;
+            id = data.id;
             title = data.category_name ?? 'No category';
             description = data.category_name ?? 'No category';
           } else if (type === 'event') {
-            id = data.event_id;
+            id = data.id;
             title = data.title ?? 'No title';
             description = data.description ?? 'No description';
           } else if (type === 'ticket_type') {
-            id = data.ticket_type_id;
+            id = data.id;
             title = data.type_name ?? 'No title';
             description = data.price && data.currency_code ? `${data.price} ${data.currency_code}` : 'No price';
           } else {

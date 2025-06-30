@@ -21,7 +21,6 @@ import {
 import { getUserState, setUserState } from './config/state.js';
 import { getSession, setSession } from './config/session.js';
 import {
-  searchEvents,
   getTicketTypes,
   getTicketType,
   getEvent,
@@ -37,6 +36,7 @@ import { processPayment } from './utils/payment.js';
 import { generateTicket } from './utils/ticket.js';
 import { UserSession, UserState } from './types/session.js';
 import { Event, EventCategory, User, Ticket, EventResponse } from './types/api.js';
+import { searchEvents } from 'repository/eventsDal.js';
 
 dotenv.config();
 
@@ -69,6 +69,8 @@ app.get('/webhook', async (req: Request, res: Response) => {
 app.post('/webhook', async (req: Request, res: Response) => {
   try {
     const data = whatsapp.parseMessage(req.body);
+        // console.log(data);
+    
     let replyText = '';
     if (data?.isMessage) {
       const userMessage = data.message.text?.body;
@@ -85,7 +87,6 @@ app.post('/webhook', async (req: Request, res: Response) => {
       // Check in a ticket
       if (typeof userMessage === 'string' && validate(userMessage) && version(userMessage) === 4) {
         const user = await getUserByPhone(phone);
-        console.log({ user });
         if (user.can_approve_tickets) {
           const checkTicket = await checkTicketByQRCode(userMessage);
           if (!checkTicket.checked_in) {
@@ -112,9 +113,6 @@ app.post('/webhook', async (req: Request, res: Response) => {
 
       const session = getSession(userId);
       const userState = getUserState(userId) as UserState;
-
-      console.log({ userState });
-
       switch (userState) {
         case 'menu':
           await mainMenu(userName, userId);
@@ -270,7 +268,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
         case 'search_event':
           if (typeof userMessage === 'string') {
             const events = await searchEvents(userMessage);
-            if (!events) {
+            if (events.length === 0) {
               replyText = 'No events found for your search. Please try again';
               const listButtons: SimpleButton[] = [
                 {

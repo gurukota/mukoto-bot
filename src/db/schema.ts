@@ -21,12 +21,12 @@ export const tickets = pgTable("tbl_tickets", {
 }, (table) => [
 	foreignKey({
 			columns: [table.eventId],
-			foreignColumns: [tblEvents.id],
+			foreignColumns: [events.id],
 			name: "tbl_tickets_eventId_tbl_events_id_fk"
 		}).onDelete("cascade"),
 	foreignKey({
 			columns: [table.ticketTypeId],
-			foreignColumns: [tblTicketType.id],
+			foreignColumns: [ticketType.id],
 			name: "tbl_tickets_ticketTypeId_tbl_ticket_type_id_fk"
 		}).onDelete("cascade"),
 ]);
@@ -39,12 +39,12 @@ export const selectedCategories = pgTable("tbl_selected_categories", {
 }, (table) => [
 	foreignKey({
 			columns: [table.eventId],
-			foreignColumns: [tblEvents.id],
+			foreignColumns: [events.id],
 			name: "tbl_selected_categories_eventId_tbl_events_id_fk"
 		}).onDelete("cascade"),
 	foreignKey({
 			columns: [table.categoryId],
-			foreignColumns: [tblEventCategories.id],
+			foreignColumns: [eventCategories.id],
 			name: "tbl_selected_categories_categoryId_tbl_event_categories_id_fk"
 		}).onDelete("cascade"),
 ]);
@@ -63,7 +63,7 @@ export const customFields = pgTable("tbl_custom_fields", {
 }, (table) => [
 	foreignKey({
 			columns: [table.ticketId],
-			foreignColumns: [tblTickets.id],
+			foreignColumns: [tickets.id],
 			name: "tbl_custom_fields_ticketId_tbl_tickets_id_fk"
 		}).onDelete("cascade"),
 ]);
@@ -91,7 +91,7 @@ export const users = pgTable("tbl_users", {
 }, (table) => [
 	foreignKey({
 			columns: [table.organiserId],
-			foreignColumns: [tblOrganisers.id],
+			foreignColumns: [organisers.id],
 			name: "tbl_users_organiserId_tbl_organisers_id_fk"
 		}).onDelete("cascade"),
 	unique("tbl_users_email_unique").on(table.email),
@@ -126,12 +126,12 @@ export const ticketType = pgTable("tbl_ticket_type", {
 }, (table) => [
 	foreignKey({
 			columns: [table.eventId],
-			foreignColumns: [tblEvents.id],
+			foreignColumns: [events.id],
 			name: "tbl_ticket_type_eventId_tbl_events_id_fk"
 		}).onDelete("cascade"),
 	foreignKey({
 			columns: [table.currencyCode],
-			foreignColumns: [tblCurrency.currencyCode],
+			foreignColumns: [currency.currencyCode],
 			name: "tbl_ticket_type_currencyCode_tbl_currency_currencyCode_fk"
 		}),
 ]);
@@ -169,12 +169,12 @@ export const events = pgTable("tbl_events", {
 }, (table) => [
 	foreignKey({
 			columns: [table.organiserId],
-			foreignColumns: [tblOrganisers.id],
+			foreignColumns: [organisers.id],
 			name: "tbl_events_organiserId_tbl_organisers_id_fk"
 		}).onDelete("cascade"),
 	foreignKey({
 			columns: [table.createdBy],
-			foreignColumns: [tblUsers.id],
+			foreignColumns: [users.id],
 			name: "tbl_events_createdBy_tbl_users_id_fk"
 		}).onUpdate("cascade").onDelete("set null"),
 ]);
@@ -196,7 +196,7 @@ export const account = pgTable("tbl_account", {
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],
-			foreignColumns: [tblUsers.id],
+			foreignColumns: [users.id],
 			name: "tbl_account_user_id_tbl_users_id_fk"
 		}).onDelete("cascade"),
 ]);
@@ -214,7 +214,7 @@ export const session = pgTable("tbl_session", {
 }, (table) => [
 	foreignKey({
 			columns: [table.userId],
-			foreignColumns: [tblUsers.id],
+			foreignColumns: [users.id],
 			name: "tbl_session_user_id_tbl_users_id_fk"
 		}).onDelete("cascade"),
 	unique("tbl_session_token_unique").on(table.token),
