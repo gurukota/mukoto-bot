@@ -1,9 +1,8 @@
 import { db } from '../db/index.js';
-import { events } from '../db/schema.js';
+import { events, selectedCategories } from '../db/schema.js';
 import { ilike, and, eq, or } from 'drizzle-orm';
-import type { Event } from '../types/api.js';
 
-export const searchEvents = async (query: string): Promise<Event[]> => {
+export const searchEvents = async (query: string) => {
     try {
         const searchResults = await db
             .select()
@@ -15,13 +14,54 @@ export const searchEvents = async (query: string): Promise<Event[]> => {
                         ilike(events.description, `%${query}%`)
                     ),
                     eq(events.deleted, false),
-                    eq(events.isActive, false)
+                    eq(events.isActive, true)
                 )
             );
-        console.log('Search results:', searchResults);
         return searchResults;
     } catch (error) {
         console.error('Error searching events:', error);
         return [];
     }
 };
+
+export const getEventsByCategory = async (categoryId: string) => {
+    try {
+        const eventsByCategory = await db
+            .select({
+                id: events.id,
+                organiserId: events.organiserId,
+                title: events.title,
+                description: events.description,
+                image: events.image,
+                start: events.start,
+                end: events.end,
+                latitude: events.latitude,
+                longitude: events.longitude,
+                address: events.address,
+                location: events.location,
+                country: events.country,
+                approveTickets: events.approveTickets,
+                isActive: events.isActive,
+                soldOut: events.soldOut,
+                registrationDeadline: events.registrationDeadline,
+                deleted: events.deleted,
+                createdBy: events.createdBy,
+                createdAt: events.createdAt,
+                updatedAt: events.updatedAt,
+            })
+            .from(events)
+            .innerJoin(selectedCategories, eq(events.id, selectedCategories.eventId))
+            .where(
+                and(
+                    eq(selectedCategories.categoryId, categoryId),
+                    eq(events.deleted, false),
+                    eq(events.isActive, true)
+                )
+            );
+            
+        return eventsByCategory;
+    } catch (error) {
+        console.error('Error fetching events by category:', error);
+        return [];
+    }
+}

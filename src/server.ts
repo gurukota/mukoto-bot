@@ -21,22 +21,19 @@ import {
 import { getUserState, setUserState } from './config/state.js';
 import { getSession, setSession } from './config/session.js';
 import {
-  getTicketTypes,
-  getTicketType,
-  getEvent,
   getUserByPhone,
   ticketCheckIn,
   checkTicketByQRCode,
   getTicketByPhone,
-  getEventCategories,
-  getEventsByCategory,
 } from './utils/api.js';
 import dotenv from 'dotenv';
 import { processPayment } from './utils/payment.js';
 import { generateTicket } from './utils/ticket.js';
 import { UserSession, UserState } from './types/session.js';
 import { Event, EventCategory, User, Ticket, EventResponse } from './types/api.js';
-import { searchEvents } from 'repository/eventsDal.js';
+import { searchEvents, getEventsByCategory } from 'repository/eventsDal.js';
+import { getCategories } from 'repository/categoriesDal.js';
+import { getTicketTypes } from 'repository/ticketTypesDal.js';
 
 dotenv.config();
 
@@ -69,8 +66,8 @@ app.get('/webhook', async (req: Request, res: Response) => {
 app.post('/webhook', async (req: Request, res: Response) => {
   try {
     const data = whatsapp.parseMessage(req.body);
-        // console.log(data);
-    
+    // console.log(data);
+
     let replyText = '';
     if (data?.isMessage) {
       const userMessage = data.message.text?.body;
@@ -234,7 +231,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
               await sendMessage(userId, replyText);
               setUserState(userId, 'search_event');
             } else {
-              const eventCategories = await getEventCategories();
+              const eventCategories = await getCategories();
               if (eventCategories.length === 0) {
                 replyText =
                   'No event categories found. Please try again later.';
@@ -296,6 +293,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
                 userId,
                 'event'
               );
+              setSession(userId, { events });
               setUserState(userId, 'show_event');
             }
           }
@@ -333,6 +331,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
                 userId,
                 'event'
               );
+              setSession(userId, { events });
               setUserState(userId, 'show_event');
             }
           } else {
@@ -344,7 +343,15 @@ app.post('/webhook', async (req: Request, res: Response) => {
 
         case 'show_event':
           if (messageType === 'radio_button_message' && selectionId) {
-            const { event } = await getEvent(selectionId);
+            const events = session.events;
+            let event = null
+            for (const e of events) {
+              if (e.id === selectionId) {
+                event = e;
+                break;
+              }
+            }
+
             if (event) {
               const formattedDate = moment(event.event_start).format(
                 'dddd, MMMM Do YYYY, h:mm:ss a'
@@ -352,9 +359,9 @@ app.post('/webhook', async (req: Request, res: Response) => {
               let text = `*${event.title.trim()}*\n`;
               text += `*${event.description.trim()}*`;
               text += `\n*${formattedDate}*`;
-              text += `\n*${event.event_location.location}*`;
-              await sendImage(userId, event.image, text);
-              await new Promise((r) => setTimeout(r, 2000));
+              text += `\n*${event.location}*`;
+              // await sendImage(userId, event.image, text);
+              // await new Promise((r) => setTimeout(r, 2000));
               await purchaseButtons(userId, selectionId);
               setSession(userId, { event });
               setUserState(userId, 'choosen_event_options');
@@ -376,7 +383,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
         case 'choosen_event_options':
           if (messageType === 'simple_button_message') {
             if (buttonId === '_purchase' && session.event) {
-              const ticketTypes = await getTicketTypes(session.event.event_id);
+              const ticketTypes = await getTicketTypes(session.event.id);
               if (ticketTypes.length > 0) {
                 const headerText = `#Mukoto Events🚀`;
                 const bodyText = `Streamlined ticketing, straight to your chat: Mukoto makes events effortless.`;
@@ -395,7 +402,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
                 setSession(userId, { ticketTypes });
               } else {
                 replyText =
-                  'Error fetching ticket types for this event. Please try again later.';
+                  'There are no ticket types for this event. Please try again later.';
                 await sendMessage(userId, replyText);
                 await mainMenu(userName, userId);
                 setUserState(userId, 'choose_option');
@@ -420,10 +427,15 @@ app.post('/webhook', async (req: Request, res: Response) => {
         case 'choose_ticket_type':
           if (messageType === 'radio_button_message' && selectionId) {
             const ticketTypeId = selectionId;
-            const ticketType = await getTicketType(ticketTypeId);
-            replyText = `You have selected ${ticketType.type_name} ticket. How many tickets do you want to buy?`;
+            const ticketTypes = session.ticketTypes;
+            for (const ticketType of ticketTypes) {
+              if (ticketType.id === ticketTypeId) {
+                setSession(userId, { ticketType });
+                break;
+              }
+            }
+            replyText = `You have selected ${session.ticketType.typeName} ticket. How many tickets do you want to buy?`;
             await sendMessage(userId, replyText);
-            setSession(userId, { ticketType });
             setUserState(userId, 'enter_ticket_quantity');
           } else {
             replyText = 'Please select a ticket type. Please try again.';
@@ -434,29 +446,27 @@ app.post('/webhook', async (req: Request, res: Response) => {
           break;
 
         case 'enter_ticket_quantity':
-          if (typeof userMessage === 'string') {
-            const quantity = parseInt(userMessage);
-            if (isNaN(quantity) || quantity < 1 || quantity > 10) {
-              if (quantity > 10) {
-                replyText =
-                  'You can only purchase a maximum of 10 tickets. Please try again.';
-                await sendMessage(userId, replyText);
-                replyText = 'Enter a valid number of tickets.';
-                await sendMessage(userId, replyText);
-              } else {
-                replyText = 'Enter a valid number of tickets.';
-                await sendMessage(userId, replyText);
-              }
-              setUserState(userId, 'enter_ticket_quantity');
+          const quantity = parseInt(userMessage);
+          if (isNaN(quantity) || quantity < 1 || quantity > 10) {
+            if (quantity > 10) {
+              replyText =
+                'You can only purchase a maximum of 10 tickets. Please try again.';
+              await sendMessage(userId, replyText);
+              replyText = 'Enter a valid number of tickets.';
+              await sendMessage(userId, replyText);
             } else {
-              if (session.ticketType) {
-                const total = quantity * session.ticketType.price;
-                replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
-                await paymentMethodButtons(userId, replyText);
-                setSession(userId, { total });
-                setSession(userId, { quantity });
-                setUserState(userId, 'choose_payment_method');
-              }
+              replyText = 'Enter a valid number of tickets.';
+              await sendMessage(userId, replyText);
+            }
+            setUserState(userId, 'enter_ticket_quantity');
+          } else {
+            if (session.ticketType) {
+              const total = quantity * session.ticketType.price;
+              replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
+              await paymentMethodButtons(userId, replyText);
+              setSession(userId, { total });
+              setSession(userId, { quantity });
+              setUserState(userId, 'choose_payment_method');
             }
           }
           break;
@@ -608,7 +618,7 @@ app.post('/webhook', async (req: Request, res: Response) => {
       }
     } else {
       console.log('Not a message');
-      
+
     }
     res.sendStatus(200);
   } catch (error) {
@@ -621,7 +631,7 @@ const port =
   process.env.STATUS === 'production'
     ? process.env.PROD_PORT
     : process.env.DEV_PORT;
-    
+
 app.use('*', (req: Request, res: Response) => res.status(404).send('404 Not Found'));
 app.listen(port, () => {
   console.log(`Webhook is listening on port ${port}`);
