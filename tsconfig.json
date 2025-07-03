@@ -14,11 +14,11 @@
     "sourceMap": true,
     "baseUrl": "src",
     "paths": {
-      "*": ["*"]
+      "repository/*": ["repository/*"]
     }
   },
   "ts-node": {
-    "esm": true,
+    "esm": true
   },
   "include": [
     "src/**/*"

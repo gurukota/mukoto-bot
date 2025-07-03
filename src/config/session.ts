@@ -1,15 +1,13 @@
-import { UserSession } from '../types/session.js';
+const sessionStore = {};
 
-const sessionStore: Record<string, UserSession> = {};
-
-export const getSession = (userId: string): UserSession => {
+export const getSession = (userId: string) => {
     if (!sessionStore[userId]) {
         sessionStore[userId] = {};
     }
     return sessionStore[userId];
 };
 
-export const setSession = (userId: string, data: Partial<UserSession>): void => {
+export const setSession = (userId: string, data: any) => {
     if (!sessionStore[userId]) {
         sessionStore[userId] = {};
     }
