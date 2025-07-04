@@ -23,16 +23,13 @@ import {
   getUserByPhone,
   ticketCheckIn,
   checkTicketByQRCode,
-  getTicketByPhone,
-  getEvent,
 } from '../utils/api.js';
 import { processPayment } from '../utils/payment.js';
 import { generateTicket } from '../utils/ticket.js';
-import { UserState } from '../types/session.js';
-import { Ticket } from '../types/api.js';
 import { searchEvents, getEventsByCategory } from '../repository/eventsDal.js';
 import { getCategories } from '../repository/categoriesDal.js';
-import { getTicketTypes } from '../repository/ticketTypesDal.js';
+import { getTicketTypes, } from '../repository/ticketTypesDal.js';
+import { getTicketByPhone } from '../repository/ticketsDal.js';
 
 export const handleVerification = async (req: Request, res: Response) => {
   try {
@@ -115,22 +112,19 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                 setSession(userId, { tickets });
                 if (tickets.length > 0) {
                   const processedEventIds = new Set<string>();
-                  const eventsArray = [];
+                  const events = [];
                   for (const ticket of tickets) {
-                    if (!processedEventIds.has(ticket.event_id)) {
-                      const eventData = await getEvent(ticket.event_id);
-                      if (eventData) {
-                        eventsArray.push({
-                          event_id: ticket.event_id,
-                          title: eventData.event.title,
-                          description: eventData.event.description,
-                        });
-                      }
-                      processedEventIds.add(ticket.event_id);
+                    if (!processedEventIds.has(ticket.eventId)) {
+                      events.push({
+                        id: ticket.eventId,
+                        title: ticket.eventTitle,
+                        description: ticket.eventDescription,
+                      });
+                      processedEventIds.add(ticket.eventId);
                     }
                   }
                   await sendRadioButtons(
-                    eventsArray,
+                    events,
                     '#Mukoto Events🚀',
                     'Select an event to get your ticket.',
                     'Powered by: Your Address Tech',
@@ -171,9 +165,11 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'resend_ticket':
           if (type === 'radio_button_message' && selectionId) {
-            const tickets = (session.tickets as Ticket[]).filter(
-              (ticket) => ticket.event_id === selectionId
+            const tickets = (session.tickets).filter(
+              (ticket: any) => ticket.eventId === selectionId
             );
+            console.log('tickets', tickets);
+            
             for (const ticket of tickets) {
               const generatedTicket = await generateTicket(ticket);
               if (generatedTicket) {
@@ -363,10 +359,10 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               await sendMessage(userId, replyText);
               setUserState(userId, 'enter_ticket_quantity');
             } else {
-                replyText = 'Please select a ticket type. Please try again.';
-                await sendMessage(userId, replyText);
-                await mainMenu(userName, userId);
-                setUserState(userId, 'choose_option');
+              replyText = 'Please select a ticket type. Please try again.';
+              await sendMessage(userId, replyText);
+              await mainMenu(userName, userId);
+              setUserState(userId, 'choose_option');
             }
           } else {
             replyText = 'Please select a ticket type. Please try again.';
@@ -451,6 +447,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
         case 'utilities':
           if (type === 'simple_button_message') {
             const tickets = await getTicketByPhone(userId);
+            
             if (tickets.length === 0) {
               replyText = 'You have no tickets to view event locations.';
               await sendMessage(userId, replyText);
@@ -460,18 +457,16 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               const events = [];
               const processedEventIds = new Set<string>();
               for (const ticket of tickets) {
-                if (!processedEventIds.has(ticket.event_id)) {
-                  const eventData = await getEvent(ticket.event_id);
-                  if (eventData && eventData.event) {
-                    events.push({
-                      event_id: ticket.event_id,
-                      title: eventData.event.title,
-                      description: eventData.event.description,
-                    });
-                  }
-                  processedEventIds.add(ticket.event_id);
+                if (!processedEventIds.has(ticket.eventId)) {
+                  events.push({
+                    id: ticket.eventId,
+                    title: ticket.eventTitle,
+                    description: ticket.eventDescription,
+                  });
+                  processedEventIds.add(ticket.eventId);
                 }
               }
+              setSession(userId, { tickets });
               await sendRadioButtons(
                 events,
                 '#Mukoto Events🚀',
@@ -493,14 +488,16 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'send_event_location':
           if (type === 'radio_button_message' && selectionId) {
-            const { event } = await getEvent(selectionId);
-            if (event) {
+            const ticket = (session.tickets).find(
+              (t: any) => t.eventId === selectionId
+            );
+            if (ticket) {
               await sendLocation(
                 userId,
-                event.event_location.latitude,
-                event.event_location.longitude,
-                event.event_location.location,
-                event.event_location.address
+                ticket.latitude,
+                ticket.longitude,
+                ticket.location,
+                ticket.address
               );
             } else {
               replyText = 'Event not found. Please try again.';

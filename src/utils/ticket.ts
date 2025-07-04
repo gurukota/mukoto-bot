@@ -13,19 +13,19 @@ interface TicketResult {
   pdfFileName: string;
 }
 
-export const generateTicket = async (ticket: Ticket): Promise<TicketResult | null> => {
-  const qrCode = await generateQRCode(ticket.qr_code);
+export const generateTicket = async (ticket: any) => {
+  const qrCode = await generateQRCode(ticket.qrCode);
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-  const dateTime = moment(ticket.event_start).format(
+  const dateTime = moment(ticket.eventStart).format(
     'dddd, MMMM Do YYYY, h:mm:ss a'
   );
-  const ticketType = ticket.ticket_type;
-  const ticketPrice = `USD $${ticket.purchaser.price_paid}`;
-  const purchaser = ticket.purchaser.full_name;
-  const venue = ticket.location.name;
-  const organiser = 'Zimbabwe Cricket';
-  const eventTitle = ticket.title;
+  const ticketType = ticket.ticketTypeName || 'General Admission';
+  const ticketPrice = `USD $${ticket.pricePaid}`;
+  const purchaser = ticket.nameOnTicket || 'Unknown Purchaser';
+  const venue = ticket.address || 'Unknown Venue';
+  const organiser = ticket.organiserName;
+  const eventTitle = ticket.eventTitle;
 
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
@@ -111,7 +111,7 @@ export const generateTicket = async (ticket: Ticket): Promise<TicketResult | nul
   // Set ticket info
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  page.drawText(ticket.qr_code, {
+  page.drawText(ticket.qrCode, {
     x: 120,
     y: height - 190,
     size: regularSize,
@@ -236,7 +236,7 @@ export const generateTicket = async (ticket: Ticket): Promise<TicketResult | nul
     fs.writeFileSync(path_ext, pdfBytes);
     console.log('PDF Created!');
     return {
-      pdfName: ticket.title,
+      pdfName: ticket.nameOnTicket || 'Ticket',
       pdfFileName: path_ext,
     };
   } catch (err) {

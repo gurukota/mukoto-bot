@@ -37,7 +37,7 @@ const mainMenu = async (username: string, userId: string): Promise<void> => {
         id: '_utilities',
       },
       {
-        title: 'View Ticket',
+        title: 'View Tickets',
         id: '_view_resend_ticket',
       },
     ],
