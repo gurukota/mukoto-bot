@@ -4,13 +4,15 @@ import { sql } from "drizzle-orm"
 
 
 export const tickets = pgTable("tbl_tickets", {
-	id: text().primaryKey().notNull(),
+	id: text("id")
+		.primaryKey()
+		.$defaultFn(() => crypto.randomUUID()),
 	eventId: text().notNull(),
 	ticketTypeId: text().notNull(),
 	nameOnTicket: varchar({ length: 255 }).notNull(),
 	checkedIn: boolean().default(false),
 	qrCode: varchar({ length: 255 }),
-	pricePaid: numeric({ precision: 10, scale:  2 }).notNull(),
+	pricePaid: numeric({ precision: 10, scale: 2 }).notNull(),
 	status: varchar({ length: 50 }).notNull(),
 	email: varchar({ length: 255 }).notNull(),
 	phone: varchar({ length: 20 }).notNull(),
@@ -20,15 +22,15 @@ export const tickets = pgTable("tbl_tickets", {
 	paymentStatus: varchar({ length: 50 }).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.eventId],
-			foreignColumns: [events.id],
-			name: "tbl_tickets_eventId_tbl_events_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.eventId],
+		foreignColumns: [events.id],
+		name: "tbl_tickets_eventId_tbl_events_id_fk"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.ticketTypeId],
-			foreignColumns: [ticketType.id],
-			name: "tbl_tickets_ticketTypeId_tbl_ticket_type_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.ticketTypeId],
+		foreignColumns: [ticketType.id],
+		name: "tbl_tickets_ticketTypeId_tbl_ticket_type_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const selectedCategories = pgTable("tbl_selected_categories", {
@@ -38,15 +40,15 @@ export const selectedCategories = pgTable("tbl_selected_categories", {
 	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.eventId],
-			foreignColumns: [events.id],
-			name: "tbl_selected_categories_eventId_tbl_events_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.eventId],
+		foreignColumns: [events.id],
+		name: "tbl_selected_categories_eventId_tbl_events_id_fk"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.categoryId],
-			foreignColumns: [eventCategories.id],
-			name: "tbl_selected_categories_categoryId_tbl_event_categories_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.categoryId],
+		foreignColumns: [eventCategories.id],
+		name: "tbl_selected_categories_categoryId_tbl_event_categories_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const eventCategories = pgTable("tbl_event_categories", {
@@ -62,10 +64,10 @@ export const customFields = pgTable("tbl_custom_fields", {
 	response: varchar({ length: 255 }),
 }, (table) => [
 	foreignKey({
-			columns: [table.ticketId],
-			foreignColumns: [tickets.id],
-			name: "tbl_custom_fields_ticketId_tbl_tickets_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.ticketId],
+		foreignColumns: [tickets.id],
+		name: "tbl_custom_fields_ticketId_tbl_tickets_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const currency = pgTable("tbl_currency", {
@@ -90,10 +92,10 @@ export const users = pgTable("tbl_users", {
 	banExpires: timestamp("ban_expires", { mode: 'string' }),
 }, (table) => [
 	foreignKey({
-			columns: [table.organiserId],
-			foreignColumns: [organisers.id],
-			name: "tbl_users_organiserId_tbl_organisers_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.organiserId],
+		foreignColumns: [organisers.id],
+		name: "tbl_users_organiserId_tbl_organisers_id_fk"
+	}).onDelete("cascade"),
 	unique("tbl_users_email_unique").on(table.email),
 	unique("tbl_users_phoneNumber_unique").on(table.phoneNumber),
 ]);
@@ -115,25 +117,25 @@ export const ticketType = pgTable("tbl_ticket_type", {
 	id: text().primaryKey().notNull(),
 	eventId: text().notNull(),
 	typeName: varchar({ length: 100 }).notNull(),
-	price: numeric({ precision: 10, scale:  2 }).notNull(),
+	price: numeric({ precision: 10, scale: 2 }).notNull(),
 	currencyCode: char({ length: 3 }).notNull(),
 	description: text(),
 	availableQuantity: integer().notNull(),
 	deleted: boolean().default(false),
 	createdAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow(),
-	splitPercentage: numeric({ precision: 5, scale:  2 }),
+	splitPercentage: numeric({ precision: 5, scale: 2 }),
 }, (table) => [
 	foreignKey({
-			columns: [table.eventId],
-			foreignColumns: [events.id],
-			name: "tbl_ticket_type_eventId_tbl_events_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.eventId],
+		foreignColumns: [events.id],
+		name: "tbl_ticket_type_eventId_tbl_events_id_fk"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.currencyCode],
-			foreignColumns: [currency.currencyCode],
-			name: "tbl_ticket_type_currencyCode_tbl_currency_currencyCode_fk"
-		}),
+		columns: [table.currencyCode],
+		foreignColumns: [currency.currencyCode],
+		name: "tbl_ticket_type_currencyCode_tbl_currency_currencyCode_fk"
+	}),
 ]);
 
 export const verification = pgTable("tbl_verification", {
@@ -168,15 +170,15 @@ export const events = pgTable("tbl_events", {
 	updatedAt: timestamp({ withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	foreignKey({
-			columns: [table.organiserId],
-			foreignColumns: [organisers.id],
-			name: "tbl_events_organiserId_tbl_organisers_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.organiserId],
+		foreignColumns: [organisers.id],
+		name: "tbl_events_organiserId_tbl_organisers_id_fk"
+	}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.createdBy],
-			foreignColumns: [users.id],
-			name: "tbl_events_createdBy_tbl_users_id_fk"
-		}).onUpdate("cascade").onDelete("set null"),
+		columns: [table.createdBy],
+		foreignColumns: [users.id],
+		name: "tbl_events_createdBy_tbl_users_id_fk"
+	}).onUpdate("cascade").onDelete("set null"),
 ]);
 
 export const account = pgTable("tbl_account", {
@@ -195,10 +197,10 @@ export const account = pgTable("tbl_account", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "tbl_account_user_id_tbl_users_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "tbl_account_user_id_tbl_users_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const session = pgTable("tbl_session", {
@@ -213,9 +215,9 @@ export const session = pgTable("tbl_session", {
 	impersonatedBy: text("impersonated_by"),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [users.id],
-			name: "tbl_session_user_id_tbl_users_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [users.id],
+		name: "tbl_session_user_id_tbl_users_id_fk"
+	}).onDelete("cascade"),
 	unique("tbl_session_token_unique").on(table.token),
 ]);

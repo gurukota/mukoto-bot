@@ -1,12 +1,35 @@
 import { db } from '../db/index.js';
-import { events, selectedCategories } from '../db/schema.js';
+import { events, selectedCategories, organisers } from '../db/schema.js';
 import { ilike, and, eq, or } from 'drizzle-orm';
 
 export const searchEvents = async (query: string) => {
     try {
         const searchResults = await db
-            .select()
+            .select({
+                id: events.id,
+                organiserId: events.organiserId,
+                title: events.title,
+                description: events.description,
+                image: events.image,
+                start: events.start,
+                end: events.end,
+                latitude: events.latitude,
+                longitude: events.longitude,
+                address: events.address,
+                location: events.location,
+                country: events.country,
+                approveTickets: events.approveTickets,
+                isActive: events.isActive,
+                soldOut: events.soldOut,
+                registrationDeadline: events.registrationDeadline,
+                deleted: events.deleted,
+                createdBy: events.createdBy,
+                createdAt: events.createdAt,
+                updatedAt: events.updatedAt,
+                organiserName: organisers.name,
+            })
             .from(events)
+            .innerJoin(organisers, eq(events.organiserId, organisers.id))
             .where(
                 and(
                     or(
@@ -48,9 +71,11 @@ export const getEventsByCategory = async (categoryId: string) => {
                 createdBy: events.createdBy,
                 createdAt: events.createdAt,
                 updatedAt: events.updatedAt,
+                organiserName: organisers.name,
             })
             .from(events)
             .innerJoin(selectedCategories, eq(events.id, selectedCategories.eventId))
+            .innerJoin(organisers, eq(events.organiserId, organisers.id))
             .where(
                 and(
                     eq(selectedCategories.categoryId, categoryId),

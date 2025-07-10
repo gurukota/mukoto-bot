@@ -12,7 +12,6 @@ export async function getTicketByPhone(phone: string) {
 			checkedIn: tickets.checkedIn,
 			qrCode: tickets.qrCode,
 			pricePaid: tickets.pricePaid,
-			status: tickets.status,
 			email: tickets.email,
 			phone: tickets.phone,
 			deleted: tickets.deleted,
@@ -21,21 +20,27 @@ export async function getTicketByPhone(phone: string) {
 			paymentStatus: tickets.paymentStatus,
 			eventTitle: events.title,
 			eventDescription: events.description,
-      longitude: events.longitude,
-      latitude: events.latitude,
-      address: events.address,
-      location: events.location,
-      eventStart: events.start,
-      eventEnd: events.end,
+			longitude: events.longitude,
+			latitude: events.latitude,
+			address: events.address,
+			location: events.location,
+			eventStart: events.start,
+			eventEnd: events.end,
 			ticketTypeName: ticketType.typeName,
-			                                 : organisers.name,
+			organiserName: organisers.name,
 		})
 		.from(tickets)
 		.innerJoin(events, eq(tickets.eventId, events.id))
 		.innerJoin(ticketType, eq(tickets.ticketTypeId, ticketType.id))
 		.innerJoin(organisers, eq(events.organiserId, organisers.id))
 		.where(eq(tickets.phone, phone));
-	
+
 	return result;
+}
+
+export async function createTicket(ticketData: any) {
+	const result = await db.insert(tickets).values(ticketData).returning();
+	console.log(result);
+	return result[0] || null;
 }
 

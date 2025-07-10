@@ -5,13 +5,6 @@ import fs from 'fs';
 import moment from 'moment';
 import { fileURLToPath } from 'url';
 import { generateQRCode } from './whatsapp.js';
-import { getEvent } from './api.js';
-import { Ticket } from '../types/api.js';
-
-interface TicketResult {
-  pdfName: string;
-  pdfFileName: string;
-}
 
 export const generateTicket = async (ticket: any) => {
   const qrCode = await generateQRCode(ticket.qrCode);
@@ -234,7 +227,6 @@ export const generateTicket = async (ticket: any) => {
 
   try {
     fs.writeFileSync(path_ext, pdfBytes);
-    console.log('PDF Created!');
     return {
       pdfName: ticket.nameOnTicket || 'Ticket',
       pdfFileName: path_ext,

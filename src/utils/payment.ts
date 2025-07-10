@@ -9,10 +9,9 @@ import {
   sendDocument,
   sendUrlButton,
 } from './whatsapp.js';
-import { createTicket } from './api.js';
+import { createTicket } from 'repository/ticketsDal.js';
 import { generateTicket } from './ticket.js';
 import { UserSession } from '../types/session.js';
-import { Ticket, TicketPurchase } from '../types/api.js';
 
 dotenv.config();
 
@@ -30,7 +29,7 @@ export const processPayment = async (session: UserSession, userId: string): Prom
   const paymentMethod = session.paymentMethod || '';
   const eventName = session.event?.title || '';
   const price = parseInt(String(session.total)) || 0;
-  const email = 'simbarashedixon@gmail.com'; //'purchases@mukoto.co.zw';
+  const email = 'simbarashedixon@gmail.com'; //'purchases@mukoto.app';
 
   try {
     const payment = paynow.createPayment(username, email);
@@ -51,7 +50,7 @@ export const processPayment = async (session: UserSession, userId: string): Prom
 
 const handlePaymentResponse = async (
   response: any,
-  session: UserSession,
+  session: any,
   userId: string,
   paymentMethod: string
 ): Promise<void> => {
@@ -131,44 +130,67 @@ const pollTransactionWithRetries = async (pollUrl: string, paymentMethod: string
   return { status: 'failed' }; // Default to failed status if max retries exceeded
 };
 
-const processTicketPurchase = async (session: UserSession): Promise<Ticket | null> => {
+const processTicketPurchase = async (session: any) => {
   const qrCodeText = uuidv4();
-  const randomString = Math.random().toString(36).substring(2, 7);
   const qrCode = await generateQRCode(qrCodeText);
   
   if (!session.ticketTypes || !session.ticketTypes.length || !session.event || !session.phoneNumber) {
     return null;
   }
   
-  const ticketData: TicketPurchase = {
-    event_id: session.event.event_id,
+  const ticketData = {
+    id: uuidv4(),
+    eventId: session.event.id,
     title: session.event.title,
-    event_start: session.event.event_start,
-    event_end: session.event.event_end,
-    name_on_ticket: randomString,
-    checked_in: false,
-    qr_code: qrCodeText,
-    qr_code_url: qrCode, // Set the URL of the QR code image if applicable
-    ticket_type_id: session.ticketTypes[0].ticket_type_id, // Set the ticket type ID if applicable
+    eventStart: session.event.start,
+    eventEnd: session.event.end,
+    nameOnTicket: session.userName,
+    qrCode: qrCodeText,
+    ticketTypeId: session.ticketType.id, // Set the ticket type ID if applicable
     status: 'paid', // Set the status of the ticket if applicable
-    full_name: session.userName || '', // Set the full name of the ticket holder
-    price_paid: session.ticketTypes[0].price, // Set the price paid for the ticket if applicable
-    total_quantity: session.quantity || 1, // Set the total quantity of tickets if applicable
-    email: 'purchases@mukoto.co.zw',
+    fullName: session.userName || '', // Set the full name of the ticket holder
+    pricePaid: session.ticketType.price, // Set the price paid for the ticket if applicable
+    email: 'purchases@mukoto.app',
     phone: `263${session.phoneNumber.slice(1)}`, // Set the phone number of the ticket holder
-    currency_code: session.ticketTypes[0].currency_code,
-    payment_status: 'paid',
+    paymentStatus: 'paid',
   };
 
   return createTicket(ticketData);
 };
 
-const processSuccessfulPayment = async (session: UserSession, userId: string): Promise<void> => {
+const processSuccessfulPayment = async (session: any, userId: string): Promise<void> => {
   await sendMessage(userId, 'Payment successful 🎉🎉🎉');
   await sendMessage(userId, 'Please wait while we process your ticket⏳...');
   for (let i = 0; i < (session.quantity || 0); i++) {
-    const ticket = await processTicketPurchase(session);
-    if (ticket && ticket.purchaser?.status === 'paid') {
+    const res = await processTicketPurchase(session);
+    console.log(session);
+    
+    if (res && res.paymentStatus === 'paid') {
+      const ticket = {
+        id: res.id,
+        eventId: res.eventId,
+        ticketTypeId: res.ticketTypeId,
+        nameOnTicket: res.nameOnTicket,
+        checkedIn: res.checkedIn,
+        qrCode: res.qrCode,
+        pricePaid: res.pricePaid,
+        email: res.email,
+        phone: res.phone,
+        deleted: res.deleted,
+        createdAt: res.createdAt,
+        updatedAt: res.updatedAt,
+        paymentStatus: res.paymentStatus,
+        eventTitle: session.event.title,
+        eventDescription: session.event.description,
+        longitude: session.event.longitude,
+        latitude: session.event.latitude,
+        address: session.event.address,
+        location: session.event.location,
+        eventStart: session.event.start,
+        eventEnd: session.event.end,
+        ticketTypeName: session.ticketType.typeName,
+        organiserName: session.event.organiserName,
+      }
       const generatedPDF = await generateTicket(ticket);
       if (generatedPDF) {
         await sendDocument(

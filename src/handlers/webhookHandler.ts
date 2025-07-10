@@ -168,7 +168,6 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
             const tickets = (session.tickets).filter(
               (ticket: any) => ticket.eventId === selectionId
             );
-            console.log('tickets', tickets);
             
             for (const ticket of tickets) {
               const generatedTicket = await generateTicket(ticket);
