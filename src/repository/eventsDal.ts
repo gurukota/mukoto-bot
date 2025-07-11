@@ -1,5 +1,5 @@
 import { db } from '../db/index.js';
-import { events, selectedCategories, organisers } from '../db/schema.js';
+import { events, selectedEventCategories, organisers } from '../db/schema.js';
 import { ilike, and, eq, or } from 'drizzle-orm';
 
 export const searchEvents = async (query: string) => {
@@ -42,8 +42,6 @@ export const searchEvents = async (query: string) => {
                     eq(events.soldOut, false)
                 )
             );
-            console.log(searchResults);
-            
         return searchResults;
     } catch (error) {
         console.error('Error searching events:', error);
@@ -78,11 +76,11 @@ export const getEventsByCategory = async (categoryId: string) => {
                 organiserName: organisers.name,
             })
             .from(events)
-            .innerJoin(selectedCategories, eq(events.id, selectedCategories.eventId))
+            .innerJoin(selectedEventCategories, eq(events.id, selectedEventCategories.eventId))
             .innerJoin(organisers, eq(events.organiserId, organisers.id))
             .where(
                 and(
-                    eq(selectedCategories.categoryId, categoryId),
+                    eq(selectedEventCategories.categoryId, categoryId),
                     eq(events.deleted, false),
                     eq(events.isActive, true),
                     eq(organisers.deleted, false),

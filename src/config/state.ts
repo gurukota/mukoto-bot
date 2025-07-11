@@ -1,12 +1,10 @@
-import { UserState } from '../types/session.js';
+const userStates: { [userId: string]: string } = {};
 
-const userStates: Record<string, UserState> = {};
-
-function getUserState(userId: string): UserState | undefined {
+function getUserState(userId: string){
     return userStates[userId];
 }
 
-function setUserState(userId: string, state: UserState): void {
+function setUserState(userId: string, state: any): void {
     userStates[userId] = state;
 }
 

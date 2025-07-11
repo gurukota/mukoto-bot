@@ -58,30 +58,26 @@ export const sendRadioButtons = async (
       title: 'Hi there!',
       rows: dataArray
         .map((data) => {
-          let id: string, title: string, description: string;
+          let title: string, description: string;
             switch (type) {
             case 'category':
-              id = data.id;
-              title = data.categoryName ?? 'No category';
-              description = data.categoryName ?? 'No category';
+              title = data.categoryName;
+              description = data.categoryName;
               break;
             case 'event':
-              id = data.id;
-              title = data.title ?? 'No title';
-              description = data.description ?? 'No description';
+              title = data.title;
+              description = data.description;
               break;
             case 'ticket_type':
-              id = data.id;
-              title = data.typeName ?? 'No title';
-              description = data.price && data.currencyCode ? `${data.price} ${data.currencyCode}` : 'No price';
+              title = data.typeName;
+              description = `${data.price} ${data.currencyCode}`;
               break;
             default:
-              id = '';
               title = '';
               description = '';
             }
           return {
-            id,
+            id: data.id,
             title: title.substring(0, 24),
             description,
           };

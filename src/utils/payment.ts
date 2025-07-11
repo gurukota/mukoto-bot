@@ -11,7 +11,7 @@ import {
 } from './whatsapp.js';
 import { createTicket } from 'repository/ticketsDal.js';
 import { generateTicket } from './ticket.js';
-import { UserSession } from '../types/session.js';
+import { SessionType } from 'types/index.js';
 
 dotenv.config();
 
@@ -23,12 +23,12 @@ paynow.resultUrl = 'http://example.com/gateways/paynow/update';
 paynow.returnUrl =
   'http://example.com/return?gateway=paynow&merchantReference=1234';
 
-export const processPayment = async (session: UserSession, userId: string): Promise<void> => {
+export const processPayment = async (session: SessionType, userId: string): Promise<void> => {
   const phone = '0771111111'; //session.phoneNumber;
-  const username = session.userName || '';
-  const paymentMethod = session.paymentMethod || '';
-  const eventName = session.event?.title || '';
-  const price = parseInt(String(session.total)) || 0;
+  const username = session.userName;
+  const paymentMethod = session.paymentMethod;
+  const eventName = session.event?.title;
+  const price = parseInt(String(session.total));
   const email = 'simbarashedixon@gmail.com'; //'purchases@mukoto.app';
 
   try {

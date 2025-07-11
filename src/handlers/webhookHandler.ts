@@ -30,6 +30,7 @@ import { searchEvents, getEventsByCategory } from '../repository/eventsDal.js';
 import { getCategories } from '../repository/categoriesDal.js';
 import { getTicketTypes, } from '../repository/ticketTypesDal.js';
 import { getTicketByPhone } from '../repository/ticketsDal.js';
+import { CategoryType, EventType, TicketType, TicketTypeType } from 'types/index.js';
 
 export const handleVerification = async (req: Request, res: Response) => {
   try {
@@ -43,13 +44,13 @@ export const handleVerification = async (req: Request, res: Response) => {
       mode === 'subscribe' &&
       token === process.env.WA_VERIFY_TOKEN
     ) {
-      return res.status(200).send(challenge);
+      res.status(200).send(challenge);
     } else {
-      return res.sendStatus(403);
+      res.sendStatus(403);
     }
   } catch (error) {
     console.log({ error });
-    return res.sendStatus(500);
+    res.sendStatus(500);
   }
 };
 
@@ -165,22 +166,26 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'resend_ticket':
           if (type === 'radio_button_message' && selectionId) {
-            const tickets = (session.tickets).filter(
-              (ticket: any) => ticket.eventId === selectionId
+            const tickets = (session.tickets)?.filter(
+              (ticket: TicketType) => ticket.eventId === selectionId
             );
-            
-            for (const ticket of tickets) {
-              const generatedTicket = await generateTicket(ticket);
-              if (generatedTicket) {
-                await sendDocument(
-                  generatedTicket.pdfName.toLowerCase(),
-                  generatedTicket.pdfFileName,
-                  userId
-                );
-              } else {
-                replyText = 'Tickets not found. Please try again.';
-                await sendMessage(userId, replyText);
+            if (tickets && tickets.length > 0) {
+              for (const ticket of tickets) {
+                const generatedTicket = await generateTicket(ticket);
+                if (generatedTicket) {
+                  await sendDocument(
+                    generatedTicket.pdfName.toLowerCase(),
+                    generatedTicket.pdfFileName,
+                    userId
+                  );
+                } else {
+                  replyText = 'Tickets not found. Please try again.';
+                  await sendMessage(userId, replyText);
+                }
               }
+            } else {
+              replyText = 'Tickets not found. Please try again.';
+              await sendMessage(userId, replyText);
             }
           } else {
             replyText = 'You have not selected any event. Please try again.';
@@ -197,7 +202,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               await sendMessage(userId, replyText);
               setUserState(userId, 'search_event');
             } else {
-              const eventCategories = await getCategories();
+              const eventCategories: CategoryType[] = await getCategories();
               if (eventCategories.length === 0) {
                 replyText = 'No event categories found. Please try again later.';
                 await sendMessage(userId, replyText);
@@ -225,7 +230,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'search_event':
           if (typeof userMessage === 'string') {
-            const events = await searchEvents(userMessage);
+            const events: EventType[] = await searchEvents(userMessage);
             if (events.length === 0) {
               replyText = 'No events found for your search. Would you like to try again?';
               const fallbackButtons: SimpleButton[] = [
@@ -252,7 +257,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'find_event_by_category':
           if (type === 'radio_button_message' && selectionId) {
-            const events = await getEventsByCategory(selectionId);
+            const events: EventType[] = await getEventsByCategory(selectionId);
             if (events.length === 0) {
               replyText = 'No events found for this category. Find another event?';
               const fallbackButtons: SimpleButton[] = [
@@ -279,17 +284,19 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'show_event':
           if (type === 'radio_button_message' && selectionId) {
-            const event = session.events.find((e: any) => e.id === selectionId);
+            const event = session.events?.find((e: EventType) => e.id === selectionId);
             if (event) {
-              const formattedDate = moment(event.event_start).format(
+              const formattedDate = moment(event.start).format(
                 'dddd, MMMM Do YYYY, h:mm:ss a'
               );
               let text = `*${event.title.trim()}*\n`;
-              text += `${event.description.trim()}\n`;
+              text += `${event.description?.trim()}\n`;
               text += `*${formattedDate}*\n`;
               text += `*${event.location}*`;
-              await sendImage(userId, event.image, text);
-              await new Promise((r) => setTimeout(r, 2000));
+              if (event.image) {
+                await sendImage(userId, event.image, text);
+                await new Promise((r) => setTimeout(r, 2000));
+              }
               await purchaseButtons(userId, selectionId);
               setSession(userId, { event });
               setUserState(userId, 'choosen_event_options');
@@ -310,7 +317,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
         case 'choosen_event_options':
           if (type === 'simple_button_message') {
             if (buttonId === '_purchase' && session.event) {
-              const ticketTypes = await getTicketTypes(session.event.id);
+              const ticketTypes: TicketTypeType[] = await getTicketTypes(session.event.id);
               if (ticketTypes.length > 0) {
                 await sendRadioButtons(
                   ticketTypes,
@@ -351,7 +358,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'choose_ticket_type':
           if (type === 'radio_button_message' && selectionId) {
-            const ticketType = session.ticketTypes.find((t: any) => t.id === selectionId);
+            const ticketType = session.ticketTypes?.find((t: TicketTypeType) => t.id === selectionId);
             if (ticketType) {
               setSession(userId, { ticketType });
               replyText = `You have selected ${ticketType.typeName}. How many tickets do you want to buy?`;
@@ -381,8 +388,8 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
             setUserState(userId, 'enter_ticket_quantity');
           } else {
             if (session.ticketType) {
-              const total = quantity * session.ticketType.price;
-              replyText = `You have selected ${quantity} tickets of ${session.ticketType.type_name} type. The total cost is *$${total} ${session.ticketType.currency_code}*. *Charges may apply*. Please confirm payment method.`;
+              const total = quantity * Number(session.ticketType.price);
+              replyText = `You have selected ${quantity} tickets of ${session.ticketType.typeName} type. The total cost is *$${total} ${session.ticketType.currencyCode}*. *Charges may apply*. Please confirm payment method.`;
               await paymentMethodButtons(userId, replyText);
               setSession(userId, { total, quantity });
               setUserState(userId, 'choose_payment_method');
@@ -445,8 +452,8 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'utilities':
           if (type === 'simple_button_message') {
-            const tickets = await getTicketByPhone(userId);
-            
+            const tickets: TicketType[] = await getTicketByPhone(userId);
+
             if (tickets.length === 0) {
               replyText = 'You have no tickets to view event locations.';
               await sendMessage(userId, replyText);
@@ -487,14 +494,14 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
         case 'send_event_location':
           if (type === 'radio_button_message' && selectionId) {
-            const ticket = (session.tickets).find(
-              (t: any) => t.eventId === selectionId
+            const ticket = session.tickets?.find(
+              (t: TicketType) => t.eventId === selectionId
             );
-            if (ticket) {
+            if (ticket?.latitude && ticket?.longitude && ticket?.location && ticket?.address) {
               await sendLocation(
                 userId,
-                ticket.latitude,
-                ticket.longitude,
+                parseFloat(ticket.latitude),
+                parseFloat(ticket.longitude),
                 ticket.location,
                 ticket.address
               );

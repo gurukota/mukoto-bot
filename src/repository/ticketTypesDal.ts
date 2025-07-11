@@ -1,22 +1,19 @@
 import { db } from '../db/index.js';
-import { ticketType } from '../db/schema.js';
+import { ticketTypes } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
 
 export const getTicketTypes = async (eventId: string) => {
     try {
-        const ticketTypes = await db
+        const tticketTypes = await db
             .select()
-            .from(ticketType)
+            .from(ticketTypes)
             .where(
                 and(
-                    eq(ticketType.eventId, eventId),
-                    eq(ticketType.deleted, false)
+                    eq(ticketTypes.eventId, eventId),
+                    eq(ticketTypes.deleted, false)
                 )
             );
-
-        console.log('Fetched ticket types:', ticketTypes);
-        
-        return ticketTypes;
+        return tticketTypes;
     } catch (error) {
         console.error('Error fetching ticket types:', error);
         return [];
