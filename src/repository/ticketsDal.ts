@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { tickets, events, ticketType, organisers } from '../db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 export async function getTicketByPhone(phone: string) {
 	const result = await db
@@ -33,7 +33,17 @@ export async function getTicketByPhone(phone: string) {
 		.innerJoin(events, eq(tickets.eventId, events.id))
 		.innerJoin(ticketType, eq(tickets.ticketTypeId, ticketType.id))
 		.innerJoin(organisers, eq(events.organiserId, organisers.id))
-		.where(eq(tickets.phone, phone));
+		.where(
+			and(
+				eq(tickets.phone, phone),
+				eq(tickets.deleted, false),
+				eq(events.deleted, false),
+				eq(events.isActive, true),
+				eq(organisers.deleted, false),
+				eq(events.soldOut, false),
+				eq(ticketType.deleted, false)
+			)
+		);
 
 	return result;
 }

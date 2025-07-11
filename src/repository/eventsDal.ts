@@ -37,9 +37,13 @@ export const searchEvents = async (query: string) => {
                         ilike(events.description, `%${query}%`)
                     ),
                     eq(events.deleted, false),
-                    eq(events.isActive, true)
+                    eq(events.isActive, true),
+                    eq(organisers.deleted, false),
+                    eq(events.soldOut, false)
                 )
             );
+            console.log(searchResults);
+            
         return searchResults;
     } catch (error) {
         console.error('Error searching events:', error);
@@ -80,9 +84,12 @@ export const getEventsByCategory = async (categoryId: string) => {
                 and(
                     eq(selectedCategories.categoryId, categoryId),
                     eq(events.deleted, false),
-                    eq(events.isActive, true)
+                    eq(events.isActive, true),
+                    eq(organisers.deleted, false),
+                    eq(events.soldOut, false)
                 )
             );
+            console.log(eventsByCategory);
             
         return eventsByCategory;
     } catch (error) {

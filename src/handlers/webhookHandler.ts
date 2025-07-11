@@ -288,8 +288,8 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               text += `${event.description.trim()}\n`;
               text += `*${formattedDate}*\n`;
               text += `*${event.location}*`;
-              // await sendImage(userId, event.image, text);
-              // await new Promise((r) => setTimeout(r, 2000));
+              await sendImage(userId, event.image, text);
+              await new Promise((r) => setTimeout(r, 2000));
               await purchaseButtons(userId, selectionId);
               setSession(userId, { event });
               setUserState(userId, 'choosen_event_options');
@@ -324,7 +324,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                 setUserState(userId, 'choose_ticket_type');
                 setSession(userId, { ticketTypes });
               } else {
-                replyText = 'There are no ticket types for this event. Please try again later.';
+                replyText = 'There are no tickets for this event. Please try again later.';
                 await sendMessage(userId, replyText);
                 await mainMenu(userName, userId);
                 setUserState(userId, 'choose_option');
