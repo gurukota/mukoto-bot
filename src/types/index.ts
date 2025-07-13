@@ -90,3 +90,19 @@ export type SessionType = {
   
 };
 
+export type UserType = {
+    id: string;
+    organiserId: string;
+    name?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    phoneNumber?: string | null;
+    image?: string | null;
+    role?: string | null;
+    banned?: boolean | null;
+    banReason?: string | null;
+    banExpires?: Date | null;
+    canApproveTickets?: boolean | null;
+    deleted?: boolean | null;
+};
+

@@ -21,16 +21,18 @@ import { getUserState, setUserState } from '../config/state.js';
 import { getSession, setSession } from '../config/session.js';
 import {
   getUserByPhone,
+} from '../repository/usersDal.js';
+import {
   ticketCheckIn,
   checkTicketByQRCode,
-} from '../utils/api.js';
+} from '../repository/ticketsDal.js';
 import { processPayment } from '../utils/payment.js';
 import { generateTicket } from '../utils/ticket.js';
 import { searchEvents, getEventsByCategory } from '../repository/eventsDal.js';
 import { getCategories } from '../repository/categoriesDal.js';
 import { getTicketTypes, } from '../repository/ticketTypesDal.js';
 import { getTicketByPhone } from '../repository/ticketsDal.js';
-import { CategoryType, EventType, TicketType, TicketTypeType } from 'types/index.js';
+import { CategoryType, EventType, TicketType, TicketTypeType, UserType } from 'types/index.js';
 
 export const handleVerification = async (req: Request, res: Response) => {
   try {
@@ -59,8 +61,9 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
     const data = whatsapp.parseMessage(req.body);
     let replyText = '';
 
-    if (data?.isMessage) {
-      const { from, type, text, button_reply, list_reply } = data.message;
+    if (data?.isMessage && data.message) {
+      const message = data.message;
+      const { from, type, text, button_reply, list_reply } = message;
       const { phone: userId, name: userName } = from;
       const userMessage = text?.body;
       const buttonId = button_reply?.id;
@@ -70,13 +73,17 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
 
       if (typeof userMessage === 'string' && validate(userMessage) && version(userMessage) === 4) {
         const user = await getUserByPhone(userId);
-        if (user.can_approve_tickets) {
+        if (user && user.canApproveTickets) {
           const checkTicket = await checkTicketByQRCode(userMessage);
-          replyText = !checkTicket.checked_in
-            ? 'Ticket has been checked in successfully.'
-            : 'Ticket has checked in already. Please purchase another ticket!';
-          if (!checkTicket.checked_in) {
-            await ticketCheckIn(userMessage);
+          if (checkTicket) {
+            replyText = !checkTicket.checkedIn
+              ? 'Ticket has been checked in successfully.'
+              : 'Ticket has checked in already. Please purchase another ticket!';
+            if (!checkTicket.checkedIn) {
+              await ticketCheckIn(userMessage);
+            }
+          } else {
+            replyText = 'Invalid ticket QR code. Please try again.';
           }
           await sendMessage(userId, replyText);
         }

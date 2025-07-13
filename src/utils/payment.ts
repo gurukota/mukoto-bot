@@ -25,9 +25,9 @@ paynow.returnUrl =
 
 export const processPayment = async (session: SessionType, userId: string): Promise<void> => {
   const phone = '0771111111'; //session.phoneNumber;
-  const username = session.userName;
+  const username = session.userName || 'Guest';
   const paymentMethod = session.paymentMethod;
-  const eventName = session.event?.title;
+  const eventName = session.event?.title || 'Event Ticket';
   const price = parseInt(String(session.total));
   const email = 'simbarashedixon@gmail.com'; //'purchases@mukoto.app';
 

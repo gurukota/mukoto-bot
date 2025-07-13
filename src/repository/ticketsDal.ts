@@ -54,3 +54,26 @@ export async function createTicket(ticketData: any) {
 	return result[0] || null;
 }
 
+export const checkTicketByQRCode = async (qrCode: string) => {
+	const ticket = await db
+		.select({
+			id: tickets.id,
+			checkedIn: tickets.checkedIn,
+		})
+		.from(tickets)
+		.where(eq(tickets.qrCode, qrCode))
+		.limit(1);
+
+	return ticket[0] || null;
+};
+
+export const ticketCheckIn = async (qrCode: string) => {
+	await db
+		.update(tickets)
+		.set({
+			checkedIn: true,
+			updatedAt: new Date(),
+		})
+		.where(eq(tickets.qrCode, qrCode));
+};
+

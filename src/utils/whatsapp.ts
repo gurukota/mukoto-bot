@@ -234,7 +234,7 @@ const generateQRCode = async (text: string): Promise<string> => {
     message: text,
     imageType: 'png',
   });
-  return result.data.qr_image_url;
+  return result.data?.qr_image_url || '';
 };
 
 const sendDocument = async (caption: string, filePath: string, userId: string): Promise<void> => {
