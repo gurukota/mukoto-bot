@@ -171,7 +171,9 @@ export const generateTicket = async (ticket: any) => {
 
   // Set QR Code
   try {
-    const qrCodeImageBytes = await fetch(qrCode).then((res) => res.arrayBuffer());
+    const qrCodeImageBytes = await fetch(qrCode).then((res) =>
+      res.arrayBuffer()
+    );
     const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes);
 
     // Draw QR Code
@@ -222,7 +224,10 @@ export const generateTicket = async (ticket: any) => {
     }
   );
 
-  const path_ext = path.join(__dirname, `../../downloads/${ticket.qr_code}.pdf`);
+  const path_ext = path.join(
+    __dirname,
+    `../../downloads/${ticket.qr_code}.pdf`
+  );
   const pdfBytes = await pdfDoc.save();
 
   try {

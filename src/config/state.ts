@@ -1,11 +1,14 @@
-const userStates: { [userId: string]: string } = {};
+import {
+  getUserState as getStateFromDb,
+  setUserState as setStateInDb,
+} from '../repository/statesDal.js';
 
-function getUserState(userId: string){
-    return userStates[userId];
+async function getUserState(userId: string): Promise<string | undefined> {
+  return await getStateFromDb(userId);
 }
 
-function setUserState(userId: string, state: any): void {
-    userStates[userId] = state;
+async function setUserState(userId: string, state: any): Promise<void> {
+  await setStateInDb(userId, state);
 }
 
-export { userStates, getUserState, setUserState };
+export { getUserState, setUserState };

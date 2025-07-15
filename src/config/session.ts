@@ -1,25 +1,25 @@
-import { SessionType } from "types/index.js";
+import { SessionType } from '../types/index.js';
+import {
+  getSession as getSessionFromDb,
+  setSession as setSessionInDb,
+} from '../repository/sessionsDal.js';
 
-const sessionStore: { [userId: string]: SessionType } = {};
-
-export const getSession = (userId: string): SessionType => {
-    if (!sessionStore[userId]) {
-        sessionStore[userId] = {
-            total: 0,
-            quantity: 0,
-            paymentMethod: ""
-        };
-    }
-    return sessionStore[userId];
+export const getSession = async (userId: string): Promise<SessionType> => {
+  let session = await getSessionFromDb(userId);
+  if (!session) {
+    session = {
+      total: 0,
+      quantity: 0,
+      paymentMethod: '',
+    };
+    await setSessionInDb(userId, session);
+  }
+  return session;
 };
 
-export const setSession = (userId: string, data: Partial<SessionType>): void => {
-    if (!sessionStore[userId]) {
-        sessionStore[userId] = {
-            total: 0,
-            quantity: 0,
-            paymentMethod: ""
-        };
-    }
-    Object.assign(sessionStore[userId], data);
+export const setSession = async (
+  userId: string,
+  data: Partial<SessionType>
+): Promise<void> => {
+  await setSessionInDb(userId, data);
 };

@@ -109,12 +109,12 @@ declare module 'whatsappcloudapi_wrapper' {
     });
 
     sendMessage(message: WhatsAppMessage): Promise<WhatsAppResponse>;
-    
+
     sendText(options: {
       message: string;
       recipientPhone: string;
     }): Promise<WhatsAppResponse>;
-    
+
     sendDocument(options: {
       document?: {
         link: string;
@@ -126,7 +126,7 @@ declare module 'whatsappcloudapi_wrapper' {
       mime_type?: string;
       file_path?: string;
     }): Promise<WhatsAppResponse>;
-    
+
     sendButton(options: {
       recipientPhone: string;
       headerText?: string;
@@ -137,13 +137,13 @@ declare module 'whatsappcloudapi_wrapper' {
         id: string;
       }>;
     }): Promise<WhatsAppResponse>;
-    
+
     sendSimpleButtons(options: {
       message: string;
       recipientPhone: string;
       listOfButtons: Array<SimpleButton>;
     }): Promise<WhatsAppResponse>;
-    
+
     sendRadioButtons(options: {
       recipientPhone: string;
       headerText?: string;
@@ -159,13 +159,13 @@ declare module 'whatsappcloudapi_wrapper' {
         }>;
       }>;
     }): Promise<WhatsAppResponse>;
-    
+
     sendImage(options: {
       recipientPhone: string;
       url: string;
       caption?: string;
     }): Promise<WhatsAppResponse>;
-    
+
     sendLocation(options: {
       recipientPhone: string;
       latitude: number;
@@ -173,13 +173,13 @@ declare module 'whatsappcloudapi_wrapper' {
       name?: string;
       address?: string;
     }): Promise<WhatsAppResponse>;
-    
+
     createQRCodeMessage(options: {
       message: string;
       recipientPhone?: string;
       imageType?: string;
     }): Promise<WhatsAppResponse>;
-    
+
     parseMessage(body: any): ParsedMessage | null;
   }
 }

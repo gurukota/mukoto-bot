@@ -59,7 +59,7 @@ export const sendRadioButtons = async (
       rows: dataArray
         .map((data) => {
           let title: string, description: string;
-            switch (type) {
+          switch (type) {
             case 'category':
               title = data.categoryName;
               description = data.categoryName;
@@ -75,7 +75,7 @@ export const sendRadioButtons = async (
             default:
               title = '';
               description = '';
-            }
+          }
           return {
             id: data.id,
             title: title.substring(0, 24),
@@ -95,7 +95,11 @@ export const sendRadioButtons = async (
   });
 };
 
-const sendImage = async (userId: string, imageUrl: string, text: string): Promise<void> => {
+const sendImage = async (
+  userId: string,
+  imageUrl: string,
+  text: string
+): Promise<void> => {
   await whatsapp.sendImage({
     recipientPhone: userId,
     url: imageUrl,
@@ -103,7 +107,10 @@ const sendImage = async (userId: string, imageUrl: string, text: string): Promis
   });
 };
 
-const purchaseButtons = async (userId: string, eventId: string): Promise<void> => {
+const purchaseButtons = async (
+  userId: string,
+  eventId: string
+): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: 'Here is the event, what do you want to do next?',
@@ -124,7 +131,10 @@ const purchaseButtons = async (userId: string, eventId: string): Promise<void> =
   });
 };
 
-const initiatePurchaseButtons = async (userId: string, replyText: string): Promise<void> => {
+const initiatePurchaseButtons = async (
+  userId: string,
+  replyText: string
+): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
@@ -141,7 +151,10 @@ const initiatePurchaseButtons = async (userId: string, replyText: string): Promi
   });
 };
 
-const paymentMethodButtons = async (userId: string, replyText: string): Promise<void> => {
+const paymentMethodButtons = async (
+  userId: string,
+  replyText: string
+): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
@@ -163,8 +176,8 @@ const paymentMethodButtons = async (userId: string, replyText: string): Promise<
 };
 
 export const sendButtons = async (
-  userId: string, 
-  replyText: string, 
+  userId: string,
+  replyText: string,
   listOfButtons: SimpleButton[]
 ): Promise<void> => {
   await whatsapp.sendSimpleButtons({
@@ -174,7 +187,10 @@ export const sendButtons = async (
   });
 };
 
-const paymentNumberButtons = async (userId: string, replyText: string): Promise<void> => {
+const paymentNumberButtons = async (
+  userId: string,
+  replyText: string
+): Promise<void> => {
   await whatsapp.sendSimpleButtons({
     recipientPhone: userId,
     message: replyText,
@@ -191,7 +207,10 @@ const paymentNumberButtons = async (userId: string, replyText: string): Promise<
   });
 };
 
-const ticketTypeButton = async (userId: string, ticketTypes: any[]): Promise<void> => {
+const ticketTypeButton = async (
+  userId: string,
+  ticketTypes: any[]
+): Promise<void> => {
   const listOfButtons = ticketTypes
     .map((type) => {
       return {
@@ -237,7 +256,11 @@ const generateQRCode = async (text: string): Promise<string> => {
   return result.data?.qr_image_url || '';
 };
 
-const sendDocument = async (caption: string, filePath: string, userId: string): Promise<void> => {
+const sendDocument = async (
+  caption: string,
+  filePath: string,
+  userId: string
+): Promise<void> => {
   await whatsapp.sendDocument({
     recipientPhone: userId,
     caption: caption.toLowerCase(),
@@ -263,11 +286,11 @@ export const sendLocation = async (
 };
 
 export const sendUrlButton = async (
-  recipientPhone: string, 
-  headerText: string, 
-  bodyText: string, 
-  footerText: string, 
-  messageText: string, 
+  recipientPhone: string,
+  headerText: string,
+  bodyText: string,
+  footerText: string,
+  messageText: string,
   buttonUrl: string
 ): Promise<void> => {
   try {
@@ -286,7 +309,7 @@ export const sendUrlButton = async (
         interactive: {
           type: 'cta_url',
           header: {
-            type: "text",
+            type: 'text',
             text: headerText,
           },
           body: {
@@ -296,12 +319,11 @@ export const sendUrlButton = async (
             text: footerText,
           },
           action: {
-                name: 'cta_url',
-                parameters: {
-                  display_text: messageText,
-                  url: buttonUrl,
-                }
-
+            name: 'cta_url',
+            parameters: {
+              display_text: messageText,
+              url: buttonUrl,
+            },
           },
         },
       },

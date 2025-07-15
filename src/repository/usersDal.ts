@@ -3,7 +3,9 @@ import { db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { UserType } from '../types/index.js';
 
-export const getUserByPhone = async (phone: string): Promise<UserType | null> => {
+export const getUserByPhone = async (
+  phone: string
+): Promise<UserType | null> => {
   const user = await db
     .select({
       id: users.id,

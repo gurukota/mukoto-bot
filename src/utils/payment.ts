@@ -23,7 +23,10 @@ paynow.resultUrl = 'http://example.com/gateways/paynow/update';
 paynow.returnUrl =
   'http://example.com/return?gateway=paynow&merchantReference=1234';
 
-export const processPayment = async (session: SessionType, userId: string): Promise<void> => {
+export const processPayment = async (
+  session: SessionType,
+  userId: string
+): Promise<void> => {
   const phone = '0771111111'; //session.phoneNumber;
   const username = session.userName || 'Guest';
   const paymentMethod = session.paymentMethod;
@@ -43,7 +46,10 @@ export const processPayment = async (session: SessionType, userId: string): Prom
     await handlePaymentResponse(response, session, userId, paymentMethod);
   } catch (error) {
     console.log(error);
-    await sendMessage(userId, 'There has been an error. If the payment was successful, please choose the *View Ticket* menu at the main menu to view your ticket. If the payment was not successful, please try again.😞');
+    await sendMessage(
+      userId,
+      'There has been an error. If the payment was successful, please choose the *View Ticket* menu at the main menu to view your ticket. If the payment was not successful, please try again.😞'
+    );
     setUserState(userId, 'menu');
   }
 };
@@ -78,9 +84,14 @@ const handlePaymentResponse = async (
   }
 };
 
-const handleInnbucksPayment = async (response: any, userId: string): Promise<void> => {
+const handleInnbucksPayment = async (
+  response: any,
+  userId: string
+): Promise<void> => {
   const authCode = response.innbucks_info?.[0].authorizationcode;
-  const spacedAuthCode = authCode ? authCode.toString().replace(/(\d{3})(?=\d)/g, '$1 ') : '';
+  const spacedAuthCode = authCode
+    ? authCode.toString().replace(/(\d{3})(?=\d)/g, '$1 ')
+    : '';
   const deepLink = response.innbucks_info?.[0].deep_link_url;
 
   let replyText =
@@ -101,16 +112,29 @@ const handleInnbucksPayment = async (response: any, userId: string): Promise<voi
   await sendMessage(userId, replyText);
 };
 
-const handleWebPayment = async (response: any, userId: string): Promise<void> => {
+const handleWebPayment = async (
+  response: any,
+  userId: string
+): Promise<void> => {
   const header = 'Complete Payment';
   const body =
     'Tap the button below to see other payment option and complete payment.';
   const footer = 'Extra charges may apply.';
   const buttonText = 'See Payment Options';
-  await sendUrlButton(userId, header, body, footer, buttonText, response.redirectUrl || '');
+  await sendUrlButton(
+    userId,
+    header,
+    body,
+    footer,
+    buttonText,
+    response.redirectUrl || ''
+  );
 };
 
-const pollTransactionWithRetries = async (pollUrl: string, paymentMethod: string): Promise<any> => {
+const pollTransactionWithRetries = async (
+  pollUrl: string,
+  paymentMethod: string
+): Promise<any> => {
   let retries = 0;
   let delay = 5000;
   const backOffFactor = 2;
@@ -133,11 +157,16 @@ const pollTransactionWithRetries = async (pollUrl: string, paymentMethod: string
 const processTicketPurchase = async (session: any) => {
   const qrCodeText = uuidv4();
   const qrCode = await generateQRCode(qrCodeText);
-  
-  if (!session.ticketTypes || !session.ticketTypes.length || !session.event || !session.phoneNumber) {
+
+  if (
+    !session.ticketTypes ||
+    !session.ticketTypes.length ||
+    !session.event ||
+    !session.phoneNumber
+  ) {
     return null;
   }
-  
+
   const ticketData = {
     id: uuidv4(),
     eventId: session.event.id,
@@ -158,13 +187,16 @@ const processTicketPurchase = async (session: any) => {
   return createTicket(ticketData);
 };
 
-const processSuccessfulPayment = async (session: any, userId: string): Promise<void> => {
+const processSuccessfulPayment = async (
+  session: any,
+  userId: string
+): Promise<void> => {
   await sendMessage(userId, 'Payment successful 🎉🎉🎉');
   await sendMessage(userId, 'Please wait while we process your ticket⏳...');
   for (let i = 0; i < (session.quantity || 0); i++) {
     const res = await processTicketPurchase(session);
     console.log(session);
-    
+
     if (res && res.paymentStatus === 'paid') {
       const ticket = {
         id: res.id,
@@ -190,7 +222,7 @@ const processSuccessfulPayment = async (session: any, userId: string): Promise<v
         eventEnd: session.event.end,
         ticketTypeName: session.ticketType.typeName,
         organiserName: session.event.organiserName,
-      }
+      };
       const generatedPDF = await generateTicket(ticket);
       if (generatedPDF) {
         await sendDocument(

@@ -22,7 +22,13 @@ declare module 'paynow' {
   }
 
   export interface TransactionStatus {
-    status: 'paid' | 'cancelled' | 'failed' | 'created' | 'sent' | 'awaiting delivery';
+    status:
+      | 'paid'
+      | 'cancelled'
+      | 'failed'
+      | 'created'
+      | 'sent'
+      | 'awaiting delivery';
     reference: string;
     paynowreference: string;
     amount: number;
@@ -31,13 +37,17 @@ declare module 'paynow' {
 
   export class Paynow {
     constructor(integrationId: string, integrationKey: string);
-    
+
     resultUrl: string;
     returnUrl: string;
-    
+
     createPayment(authemail: string, authphone?: string): PaynowPayment;
     send(payment: PaynowPayment): Promise<PaynowResponse>;
-    sendMobile(payment: PaynowPayment, phone: string, method: string): Promise<PaynowResponse>;
+    sendMobile(
+      payment: PaynowPayment,
+      phone: string,
+      method: string
+    ): Promise<PaynowResponse>;
     pollTransaction(pollUrl: string): Promise<TransactionStatus>;
   }
 }
