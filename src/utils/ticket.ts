@@ -1,234 +1,260 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fetch from 'node-fetch';
-import path from 'path';
-import fs from 'fs';
 import moment from 'moment';
-import { fileURLToPath } from 'url';
 import { generateQRCode } from './whatsapp.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 export const generateTicket = async (ticket: any) => {
   const qrCode = await generateQRCode(ticket.qrCode);
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-  const dateTime = moment(ticket.eventStart).format(
-    'dddd, MMMM Do YYYY, h:mm:ss a'
-  );
+  const eventDate = moment(ticket.eventStart).format('MMMM Do YYYY');
+  const eventTime = moment(ticket.eventStart).format('h:mm a');
   const ticketType = ticket.ticketTypeName || 'General Admission';
-  const ticketPrice = `USD $${ticket.pricePaid}`;
   const purchaser = ticket.nameOnTicket || 'Unknown Purchaser';
   const venue = ticket.address || 'Unknown Venue';
-  const organiser = ticket.organiserName;
   const eventTitle = ticket.eventTitle;
 
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([1000, 800]);
+  const page = pdfDoc.addPage([600, 450]);
   const { width, height } = page.getSize();
-  const xMargin = 40;
-  const rectHeight = 380;
 
-  // const lightGray = '#cccccc';
-  const opacity = 0.3;
+  const purple = rgb(127 / 255, 34 / 255, 254 / 255);
+  const black = rgb(0, 0, 0);
+  const lightGray = rgb(0.95, 0.95, 0.95);
 
+  // Set fonts
+  const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  // Draw outer grey layer
   page.drawRectangle({
-    x: xMargin,
-    y: height - 400,
-    width: width - xMargin * 2,
-    height: rectHeight,
-    color: rgb(0.8, 0.8, 0.8),
-    opacity,
+    x: 0,
+    y: 0,
+    width,
+    height,
+    color: lightGray,
   });
 
-  // Set title
-  const title = eventTitle;
-  const titleFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const titleSize = 24;
-  const titleWidth = titleFont.widthOfTextAtSize(title, titleSize);
-  const textX = (width - titleWidth) / 2;
+  // --- Ticket Content Area ---
+  const topMargin = 40;
+  const horizontalMargin = 40;
+  const bottomMargin = 0; // No bottom margin
 
-  page.drawText(title, {
-    x: textX,
-    y: height - 70,
-    size: titleSize,
-    font: titleFont,
-    color: rgb(0, 0, 0),
+  const contentX = horizontalMargin;
+  const contentY = bottomMargin;
+  const contentWidth = width - 2 * horizontalMargin;
+  const contentHeight = height - topMargin - bottomMargin;
+  const contentTop = contentY + contentHeight;
+
+  // Draw the inner white container
+  page.drawRectangle({
+    x: contentX,
+    y: contentY,
+    width: contentWidth,
+    height: contentHeight,
+    color: rgb(1, 1, 1), // white
   });
 
-  // Set date and time
-  // const dateTime = moment(ticket.event_date).format('dddd, MMMM Do YYYY, h:mm:ss a');
-  const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-  const regularSize = 18;
-  const dateTimeWidth = regularFont.widthOfTextAtSize(dateTime, regularSize);
-  const dateTimeTextX = (width - dateTimeWidth) / 2;
-  page.drawText(dateTime, {
-    x: dateTimeTextX,
-    y: height - 100,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0, 0, 0),
+  // --- Logo ---
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const logoPath = path.join(__dirname, '../../', 'public', 'logo-min.png');
+  const logoImageBytes = fs.readFileSync(logoPath);
+  const logoImage = await pdfDoc.embedPng(logoImageBytes);
+  const logoAspectRatio = logoImage.width / logoImage.height;
+  const logoWidth = 120;
+  const logoHeight = logoWidth / logoAspectRatio;
+
+  page.drawImage(logoImage, {
+    x: contentX + 40,
+    y: contentTop - 70,
+    width: logoWidth,
+    height: logoHeight,
   });
 
-  // Set ticket info
-  page.drawText('TICKET #', {
-    x: 120,
-    y: height - 160,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
-  });
+  // --- Left column ---
+  const leftColumnX = contentX + 20;
+  const qrCodeSize = 120;
 
-  page.drawText('TICKET TYPE', {
-    x: 320,
-    y: height - 160,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-
-  page.drawText('PURCHASER', {
-    x: 520,
-    y: height - 160,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-
-  page.drawText(`PRICE`, {
-    x: 720,
-    y: height - 160,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-
-  // Set ticket info
-  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  page.drawText(ticket.qrCode, {
-    x: 120,
-    y: height - 190,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0, 0, 0),
-  });
-
-  page.drawText(ticketType, {
-    x: 320,
-    y: height - 190,
-    size: regularSize,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  page.drawText(purchaser, {
-    x: 520,
-    y: height - 190,
-    size: regularSize,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  page.drawText(ticketPrice, {
-    x: 720,
-    y: height - 190,
-    size: regularSize,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  page.drawText('VENUE', {
-    x: 120,
-    y: height - 250,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-
-  page.drawText('ORGANISER', {
-    x: 520,
-    y: height - 250,
-    size: regularSize,
-    font: regularFont,
-    color: rgb(0.5, 0.5, 0.5),
-  });
-
-  // Set more info
-  page.drawText(venue, {
-    x: 120,
-    y: height - 280,
-    size: regularSize,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  page.drawText(organiser, {
-    x: 520,
-    y: height - 280,
-    size: regularSize,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  // Set QR Code
+  // QR Code
   try {
     const qrCodeImageBytes = await fetch(qrCode).then((res) =>
       res.arrayBuffer()
     );
     const qrCodeImage = await pdfDoc.embedPng(qrCodeImageBytes);
-
-    // Draw QR Code
-    const qrCodeHeight = 180;
-    const qrCodeWidth = 180;
-    const qrCodeX = (width - qrCodeWidth) / 2;
-    const qrCodeY = height - 400;
-
     page.drawImage(qrCodeImage, {
-      x: qrCodeX,
-      y: qrCodeY,
-      width: qrCodeWidth,
-      height: qrCodeHeight,
+      x: leftColumnX + 20,
+      y: contentY + (contentHeight - qrCodeSize) / 2,
+      width: qrCodeSize,
+      height: qrCodeSize,
     });
   } catch (error) {
     console.log(error);
   }
 
-  // Set terms & conditions
-  page.drawText('Terms & Conditions:', {
-    x: 120,
-    y: height - 450,
-    size: 14,
-    font: boldFont,
-    color: rgb(0, 0, 0),
+  // --- Right column ---
+  const rightColumnX = contentX + 240;
+  const valueOffsetX = 80;
+  const titleFontSize = 14;
+  const detailFontSize = 14;
+
+  // My Big Event
+  page.drawText(eventTitle, {
+    x: rightColumnX,
+    y: contentTop - 60,
+    font: helveticaBold,
+    size: 24,
+    color: black,
   });
 
-  page.drawText(
-    'All ticket sales are final. No refunds or exchanges. Valid for entry only in accordance with event rules.',
-    {
-      x: 120,
-      y: height - 470,
-      size: 10,
-      font: regularFont,
-      color: rgb(0, 0, 0),
-    }
-  );
+  // Date and Time
+  page.drawText('Date:', {
+    x: rightColumnX,
+    y: contentTop - 100,
+    font: helveticaBold,
+    size: titleFontSize,
+    color: black,
+  });
+  page.drawText(eventDate, {
+    x: rightColumnX + valueOffsetX,
+    y: contentTop - 100,
+    font: helvetica,
+    size: detailFontSize,
+    color: black,
+  });
 
-  // Set footer message
-  page.drawText(
-    'This ticket is void if altered, and is a license to enter the specified event, subject to the terms, conditions and rules of the venue and organizer.',
-    {
-      x: 120,
-      y: height - 600,
-      size: 10,
-      font: regularFont,
-      color: rgb(0.3, 0.3, 0.3),
-    }
-  );
+  page.drawText('Time:', {
+    x: rightColumnX,
+    y: contentTop - 125,
+    font: helveticaBold,
+    size: titleFontSize,
+    color: black,
+  });
+  page.drawText(eventTime, {
+    x: rightColumnX + valueOffsetX,
+    y: contentTop - 125,
+    font: helvetica,
+    size: detailFontSize,
+    color: black,
+  });
 
+  // Location & Directions
+  page.drawText('Location:', {
+    x: rightColumnX,
+    y: contentTop - 155,
+    font: helveticaBold,
+    size: titleFontSize,
+    color: black,
+  });
+  page.drawText('The Venue', {
+    // Placeholder
+    x: rightColumnX + valueOffsetX,
+    y: contentTop - 155,
+    font: helvetica,
+    size: detailFontSize,
+    color: black,
+  });
+  page.drawText('Directions:', {
+    x: rightColumnX,
+    y: contentTop - 175,
+    font: helveticaBold,
+    size: titleFontSize,
+    color: black,
+  });
+  page.drawText(venue, {
+    x: rightColumnX + valueOffsetX,
+    y: contentTop - 175,
+    font: helvetica,
+    size: detailFontSize,
+    color: black,
+  });
+
+  // Ticket Details
+  page.drawText('Ticket Holder:', {
+    x: rightColumnX,
+    y: contentTop - 205,
+    font: helveticaBold,
+    size: titleFontSize,
+    color: black,
+  });
+  page.drawText(purchaser, {
+    x: rightColumnX + valueOffsetX,
+    y: contentTop - 205,
+    font: helvetica,
+    size: detailFontSize,
+    color: black,
+  });
+
+  page.drawText('Ticket Type:', {
+    x: rightColumnX,
+    y: contentTop - 225,
+    font: helveticaBold,
+    size: titleFontSize,
+    color: black,
+  });
+  page.drawText(ticketType, {
+    x: rightColumnX + valueOffsetX,
+    y: contentTop - 225,
+    font: helvetica,
+    size: detailFontSize,
+    color: black,
+  });
+
+  // "Add to calendar" button
+  const calendarButtonY = contentTop - 280;
+  page.drawRectangle({
+    x: rightColumnX,
+    y: calendarButtonY,
+    width: 140,
+    height: 30,
+    color: purple,
+  });
+  page.drawText('Add to calendar', {
+    x: rightColumnX + 25,
+    y: calendarButtonY + 10,
+    font: helveticaBold,
+    size: 12,
+    color: rgb(1, 1, 1),
+  });
+
+  // Add to Calendar Link
+  const eventEnd = moment(ticket.eventStart).add(2, 'hours'); // Assuming 2 hour duration
+  const googleCalendarUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+    eventTitle
+  )}&dates=${moment(ticket.eventStart).utc().format('YYYYMMDDTHHmmss') + 'Z'}/${moment(eventEnd).utc().format('YYYYMMDDTHHmmss') + 'Z'}&details=${encodeURIComponent(
+    `Ticket Holder: ${purchaser}`
+  )}&location=${encodeURIComponent(venue)}`;
+
+  const link = pdfDoc.context.obj({
+    Type: 'Annot',
+    Subtype: 'Link',
+    Rect: [rightColumnX, calendarButtonY, rightColumnX + 140, calendarButtonY + 30],
+    Border: [0, 0, 0],
+    C: [0, 0, 0],
+    A: {
+      Type: 'Action',
+      S: 'URI',
+      URI: pdfDoc.context.obj(googleCalendarUrl),
+    },
+  });
+  page.node.set(pdfDoc.context.obj('Annots'), pdfDoc.context.obj([link]));
+
+  // Vertical line separator
+  page.drawLine({
+    start: { x: contentX + 220, y: contentTop - 20 },
+    end: { x: contentX + 220, y: contentY + 20 },
+    thickness: 1,
+    color: purple,
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const timestamp = new Date().getTime();
   const path_ext = path.join(
     __dirname,
-    `../../downloads/${ticket.qr_code}.pdf`
+    `../../downloads/${ticket.qrCode}-${timestamp}.pdf`
   );
-  const pdfBytes = await pdfDoc.save();
 
   try {
     fs.writeFileSync(path_ext, pdfBytes);

@@ -156,7 +156,6 @@ const pollTransactionWithRetries = async (
 
 const processTicketPurchase = async (session: any) => {
   const qrCodeText = uuidv4();
-  const qrCode = await generateQRCode(qrCodeText);
 
   if (
     !session.ticketTypes ||
@@ -195,8 +194,6 @@ const processSuccessfulPayment = async (
   await sendMessage(userId, 'Please wait while we process your ticket⏳...');
   for (let i = 0; i < (session.quantity || 0); i++) {
     const res = await processTicketPurchase(session);
-    console.log(session);
-
     if (res && res.paymentStatus === 'paid') {
       const ticket = {
         id: res.id,
@@ -225,6 +222,10 @@ const processSuccessfulPayment = async (
       };
       const generatedPDF = await generateTicket(ticket);
       if (generatedPDF) {
+        console.log(`Generated PDF: ${generatedPDF.pdfName}`);
+        console.log(`PDF: ${generatedPDF.pdfFileName}`);
+        
+        
         await sendDocument(
           generatedPDF.pdfName.toLocaleLowerCase(),
           generatedPDF.pdfFileName,
