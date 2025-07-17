@@ -15,13 +15,14 @@ export const generateTicket = async (ticket: any) => {
   const purchaser = ticket.nameOnTicket || 'Unknown Purchaser';
   const venue = ticket.address || 'Unknown Venue';
   const eventTitle = ticket.eventTitle;
+  const location = ticket.location || 'No specific location';
 
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([600, 450]);
   const { width, height } = page.getSize();
 
-  const purple = rgb(127 / 255, 34 / 255, 254 / 255);
+  const purple = rgb(106 / 255, 119 / 255, 215 / 255);
   const black = rgb(0, 0, 0);
   const lightGray = rgb(0.95, 0.95, 0.95);
 
@@ -39,7 +40,7 @@ export const generateTicket = async (ticket: any) => {
   });
 
   // --- Ticket Content Area ---
-  const topMargin = 40;
+  const topMargin = 60;
   const horizontalMargin = 40;
   const bottomMargin = 0; // No bottom margin
 
@@ -64,12 +65,12 @@ export const generateTicket = async (ticket: any) => {
   const logoImageBytes = fs.readFileSync(logoPath);
   const logoImage = await pdfDoc.embedPng(logoImageBytes);
   const logoAspectRatio = logoImage.width / logoImage.height;
-  const logoWidth = 120;
+  const logoWidth = 150;
   const logoHeight = logoWidth / logoAspectRatio;
 
   page.drawImage(logoImage, {
     x: contentX + 40,
-    y: contentTop - 70,
+    y: contentTop - 90,
     width: logoWidth,
     height: logoHeight,
   });
@@ -96,7 +97,7 @@ export const generateTicket = async (ticket: any) => {
 
   // --- Right column ---
   const rightColumnX = contentX + 240;
-  const valueOffsetX = 80;
+  const valueOffsetX = 100;
   const titleFontSize = 14;
   const detailFontSize = 14;
 
@@ -148,7 +149,7 @@ export const generateTicket = async (ticket: any) => {
     size: titleFontSize,
     color: black,
   });
-  page.drawText('The Venue', {
+  page.drawText(location, {
     // Placeholder
     x: rightColumnX + valueOffsetX,
     y: contentTop - 155,
