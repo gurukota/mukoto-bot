@@ -2,9 +2,8 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fetch from 'node-fetch';
 import moment from 'moment';
 import { generateQRCode } from './whatsapp.js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { uploadToS3 } from './s3.js';
+
 
 export const generateTicket = async (ticket: any) => {
   const qrCode = await generateQRCode(ticket.qrCode);
@@ -60,9 +59,8 @@ export const generateTicket = async (ticket: any) => {
   });
 
   // --- Logo ---
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  const logoPath = path.join(__dirname, '../../', 'public', 'logo-min.png');
-  const logoImageBytes = fs.readFileSync(logoPath);
+  const logoUrl = 'https://mukoto-bot.s3.eu-west-2.amazonaws.com/logo-min.png';
+  const logoImageBytes = await fetch(logoUrl).then((res) => res.arrayBuffer());
   const logoImage = await pdfDoc.embedPng(logoImageBytes);
   const logoAspectRatio = logoImage.width / logoImage.height;
   const logoWidth = 150;
@@ -251,17 +249,12 @@ export const generateTicket = async (ticket: any) => {
   });
 
   const pdfBytes = await pdfDoc.save();
-  const timestamp = new Date().getTime();
-  const path_ext = path.join(
-    __dirname,
-    `../../downloads/${ticket.qrCode}-${timestamp}.pdf`
-  );
 
   try {
-    fs.writeFileSync(path_ext, pdfBytes);
+    const s3Url = await uploadToS3(Buffer.from(pdfBytes), 'pdf');
     return {
       pdfName: ticket.nameOnTicket || 'Ticket',
-      pdfFileName: path_ext,
+      pdfUrl: s3Url,
     };
   } catch (err) {
     console.log('Error creating PDF:', err);
