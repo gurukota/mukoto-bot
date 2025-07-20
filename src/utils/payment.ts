@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 import { setUserState } from '../config/state.js';
 import { v4 as uuidv4 } from 'uuid';
 import {
-  generateQRCode,
   mainMenu,
   sendMessage,
   sendDocument,
@@ -223,12 +222,12 @@ const processSuccessfulPayment = async (
       const generatedPDF = await generateTicket(ticket);
       if (generatedPDF) {
         console.log(`Generated PDF: ${generatedPDF.pdfName}`);
-        console.log(`PDF: ${generatedPDF.pdfFileName}`);
+        console.log(`PDF: ${generatedPDF.pdfName}`);
         
         
         await sendDocument(
           generatedPDF.pdfName.toLocaleLowerCase(),
-          generatedPDF.pdfFileName,
+          generatedPDF.pdfUrl,
           userId
         );
       }

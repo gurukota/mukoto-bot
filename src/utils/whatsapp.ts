@@ -167,10 +167,10 @@ const paymentMethodButtons = async (
         title: 'InnBucks',
         id: '_innbucks',
       },
-      {
-        title: 'Other',
-        id: '_other_payment_methods',
-      },
+      // {
+      //   title: 'Other',
+      //   id: '_other_payment_methods',
+      // },
     ],
   });
 };
@@ -258,14 +258,15 @@ const generateQRCode = async (text: string): Promise<string> => {
 
 const sendDocument = async (
   caption: string,
-  filePath: string,
+  link: string,
   userId: string
 ): Promise<void> => {
   await whatsapp.sendDocument({
     recipientPhone: userId,
-    caption: caption.toLowerCase(),
+    url: link,
+    caption: 'Mukoto Ticket',
     mime_type: 'application/pdf',
-    file_path: filePath,
+    file_name: caption.toLowerCase() + '.pdf',
   });
 };
 

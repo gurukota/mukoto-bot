@@ -59,7 +59,7 @@ export const generateTicket = async (ticket: any) => {
   });
 
   // --- Logo ---
-  const logoUrl = 'https://mukoto-bot.s3.eu-west-2.amazonaws.com/logo-min.png';
+  const logoUrl = 'https://mukoto-bucket.s3.af-south-1.amazonaws.com/logo-min.png';
   const logoImageBytes = await fetch(logoUrl).then((res) => res.arrayBuffer());
   const logoImage = await pdfDoc.embedPng(logoImageBytes);
   const logoAspectRatio = logoImage.width / logoImage.height;
@@ -252,6 +252,8 @@ export const generateTicket = async (ticket: any) => {
 
   try {
     const s3Url = await uploadToS3(Buffer.from(pdfBytes), 'pdf');
+    console.log(`PDF uploaded to S3: ${s3Url}`);
+    
     return {
       pdfName: ticket.nameOnTicket || 'Ticket',
       pdfUrl: s3Url,

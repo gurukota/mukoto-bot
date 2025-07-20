@@ -116,15 +116,12 @@ declare module 'whatsappcloudapi_wrapper' {
     }): Promise<WhatsAppResponse>;
 
     sendDocument(options: {
-      document?: {
-        link: string;
-        caption?: string;
-        filename?: string;
-      };
       recipientPhone: string;
       caption?: string;
       mime_type?: string;
       file_path?: string;
+      url?: string;
+      file_name?: string;
     }): Promise<WhatsAppResponse>;
 
     sendButton(options: {

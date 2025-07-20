@@ -190,7 +190,7 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                 if (generatedTicket) {
                   await sendDocument(
                     generatedTicket.pdfName.toLowerCase(),
-                    generatedTicket.pdfFileName,
+                    generatedTicket.pdfUrl,
                     userId
                   );
                 } else {
