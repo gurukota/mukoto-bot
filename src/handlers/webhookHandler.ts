@@ -86,7 +86,8 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
         validate(userMessage) &&
         version(userMessage) === 4
       ) {
-        const user = await getUserByPhone(userId);
+        const formattedUserId = userId.replace(/^263/, '0');
+        const user = await getUserByPhone(formattedUserId);
         if (user && user.canApproveTickets) {
           const checkTicket = await checkTicketByQRCode(userMessage);
           if (checkTicket) {
