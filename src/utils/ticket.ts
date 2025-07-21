@@ -255,7 +255,7 @@ export const generateTicket = async (ticket: any) => {
     console.log(`PDF uploaded to S3: ${s3Url}`);
     
     return {
-      pdfName: ticket.nameOnTicket || 'Ticket',
+      pdfName: `${ticket.eventTitle || 'Ticket'}_${moment().format('YYYYMMDD_HHmmss')}`,
       pdfUrl: s3Url,
     };
   } catch (err) {
