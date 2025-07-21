@@ -72,6 +72,12 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
       const userMessage = text?.body;
       const buttonId = button_reply?.id;
       const selectionId = list_reply?.id;
+      if (!userMessage && !buttonId && !selectionId) {
+        console.log('Ignoring non-user message');
+        res.sendStatus(200);
+        return;
+      }
+
 
       await setSession(userId, { userName });
 

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 
 const s3 = new S3Client({
@@ -23,6 +23,36 @@ export const uploadToS3 = async (fileContent: Buffer, fileExtension: string) => 
     return `https://${params.Bucket}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileName}`;
   } catch (error) {
     console.error("Error uploading to S3:", error);
+    throw error;
+  }
+};
+
+export const deleteFilesFromS3 = async () => {
+  const bucketName = process.env.AWS_BUCKET_NAME!;
+  const logoFileName = 'logo-min.png';
+
+  try {
+    const listObjectsParams = {
+      Bucket: bucketName,
+    };
+    const listObjectsCommand = new ListObjectsV2Command(listObjectsParams);
+    const listedObjects = await s3.send(listObjectsCommand);
+
+    if (listedObjects.Contents) {
+      for (const object of listedObjects.Contents) {
+        if (object.Key !== logoFileName) {
+          const deleteObjectParams = {
+            Bucket: bucketName,
+            Key: object.Key,
+          };
+          const deleteObjectCommand = new DeleteObjectCommand(deleteObjectParams);
+          await s3.send(deleteObjectCommand);
+          console.log(`Deleted ${object.Key} from S3.`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error deleting files from S3:", error);
     throw error;
   }
 };
