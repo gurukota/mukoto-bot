@@ -70,7 +70,13 @@ export const sendRadioButtons = async (
               break;
             case 'ticket_type':
               title = data.typeName;
-              description = `${data.price} ${data.currencyCode}`;
+              if (Number(data.price) === 0) {
+                // Free ticket - just show ticket type description or generic message
+                description = data.description || 'Registration available';
+              } else {
+                // Paid ticket - show price
+                description = `${data.price} ${data.currencyCode}`;
+              }
               break;
             default:
               title = '';

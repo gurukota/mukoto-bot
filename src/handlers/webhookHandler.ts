@@ -25,6 +25,7 @@ import {
   checkTicketByQRCode,
 } from '../repository/ticketsDal.js';
 import { processPayment } from '../utils/payment.js';
+import { processFreeRegistration } from '../utils/freeRegistration.js';
 import { generateTicket } from '../utils/ticket.js';
 import { searchEvents, getEventsByCategory } from '../repository/eventsDal.js';
 import { getCategories } from '../repository/categoriesDal.js';
@@ -394,9 +395,21 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
             );
             if (ticketType) {
               await setSession(userId, { ticketType });
-              replyText = `You have selected ${ticketType.typeName}. How many tickets do you want to buy?`;
-              await sendMessage(userId, replyText);
-              await setUserState(userId, 'enter_ticket_quantity');
+              
+              // Check if this is a free ticket (price = 0)
+              if (Number(ticketType.price) === 0) {
+                replyText = `You have selected ${ticketType.typeName}. Would you like to register for this event?`;
+                const freeTicketButtons: SimpleButton[] = [
+                  { title: 'Yes, Register', id: '_free_register' },
+                  { title: 'Cancel', id: '_cancel_registration' },
+                ];
+                await sendButtons(userId, replyText, freeTicketButtons);
+                await setUserState(userId, 'confirm_free_registration');
+              } else {
+                replyText = `You have selected ${ticketType.typeName}. How many tickets do you want to buy?`;
+                await sendMessage(userId, replyText);
+                await setUserState(userId, 'enter_ticket_quantity');
+              }
             } else {
               replyText = 'Please select a ticket type. Please try again.';
               await sendMessage(userId, replyText);
@@ -405,6 +418,23 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
             }
           } else {
             replyText = 'Please select a ticket type. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'confirm_free_registration':
+          if (type === 'simple_button_message') {
+            if (buttonId === '_free_register') {
+              await processFreeRegistration(session, userId);
+            } else if (buttonId === '_cancel_registration') {
+              await sendMessage(userId, 'Registration cancelled.');
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            }
+          } else {
+            replyText = 'Please choose an option.';
             await sendMessage(userId, replyText);
             await mainMenu(userName, userId);
             await setUserState(userId, 'choose_option');
