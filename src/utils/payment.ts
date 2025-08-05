@@ -12,12 +12,15 @@ import { createTicket } from 'repository/ticketsDal.js';
 import { generateTicket } from './ticket.js';
 import { SessionType } from 'types/index.js';
 import { sendCollectionMessage } from './collectionMessage.js';
+import { MessageTemplates } from './messages.js';
+import { logger } from './logger.js';
+import { config } from '../config/env.js';
 
 dotenv.config();
 
 const paynow = new Paynow(
-  process.env.PAYNOW_INTEGRATION_ID || '',
-  process.env.PAYNOW_INTEGRATION_KEY || ''
+  config.PAYNOW_INTEGRATION_ID,
+  config.PAYNOW_INTEGRATION_KEY
 );
 paynow.resultUrl = 'http://example.com/gateways/paynow/update';
 paynow.returnUrl =
@@ -27,100 +30,195 @@ export const processPayment = async (
   session: SessionType,
   userId: string
 ): Promise<void> => {
-  const phone = '0771111111'; //session.phoneNumber;
+  const phone = session.phoneNumber!;
   const username = session.userName || 'Guest';
   const paymentMethod = session.paymentMethod;
   const eventName = session.event?.title || 'Event Ticket';
   const price = parseInt(String(session.total));
-  const email = 'simbarashedixon@gmail.com'; //'purchases@mukoto.app';
+  const email = 'purchases@mukoto.app';
+
+  // Validate required session data
+  if (!session.event || !session.ticketType || !session.total) {
+    logger.error('Missing required payment data', { userId, session });
+    await sendMessage(userId, MessageTemplates.getGenericError());
+    await mainMenu(username, userId);
+    await setUserState(userId, 'choose_option');
+    return;
+  }
+
+  // Send payment initiation message
+  await sendMessage(
+    userId,
+    `💳 *Initiating Payment*\n\n🎫 Event: ${eventName}\n💰 Amount: ${price} USD\n📱 Method: ${paymentMethod?.toUpperCase()}\n\nPlease wait while we process your payment...`
+  );
 
   try {
     const payment = paynow.createPayment(username, email);
     payment.add(eventName, price);
+
     let response;
     if (paymentMethod === 'ecocash' || paymentMethod === 'innbucks') {
       response = await paynow.sendMobile(payment, phone, paymentMethod);
     } else {
       response = await paynow.send(payment);
     }
+
     await handlePaymentResponse(response, session, userId, paymentMethod);
   } catch (error) {
-    console.log(error);
+    logger.error('Payment processing error', {
+      error,
+      userId,
+      eventName,
+      price,
+    });
+
     await sendMessage(
       userId,
-      'There has been an error. If the payment was successful, please choose the *View Ticket* menu at the main menu to view your ticket. If the payment was not successful, please try again.😞'
+      `❌ *Payment Error*\n\nWe encountered an issue processing your payment. Please try again.\n\nIf you believe the payment went through, you can check your tickets using the "🎫 My Tickets" option in the main menu.`
     );
-    setUserState(userId, 'menu');
+
+    await mainMenu(username, userId);
+    await setUserState(userId, 'choose_option');
   }
 };
 
+interface PaymentResponse {
+  success: boolean;
+  pollUrl?: string;
+  redirectUrl?: string;
+  innbucks_info?: Array<{
+    authorizationcode: string;
+    deep_link_url: string;
+  }>;
+}
+
+interface TransactionStatus {
+  status:
+    | 'paid'
+    | 'cancelled'
+    | 'failed'
+    | 'pending'
+    | 'created'
+    | 'sent'
+    | 'awaiting delivery';
+}
+
 const handlePaymentResponse = async (
-  response: any,
-  session: any,
+  response: PaymentResponse,
+  session: SessionType,
   userId: string,
   paymentMethod: string
 ): Promise<void> => {
   if (!response.success) {
-    await sendMessage(userId, 'Error processing payment. Please try again😞');
-    setUserState(userId, 'menu');
+    logger.error('Payment initialization failed', { userId, paymentMethod });
+    await sendMessage(
+      userId,
+      '❌ *Payment Failed*\n\nUnable to initialize payment. Please try again or contact support.'
+    );
+    await mainMenu(session.userName || '', userId);
+    await setUserState(userId, 'choose_option');
     return;
   }
-  if (paymentMethod == 'innbucks') {
+
+  // Handle different payment methods
+  if (paymentMethod === 'innbucks') {
     await handleInnbucksPayment(response, userId);
-  }
-  if (paymentMethod == 'web') {
+  } else if (paymentMethod === 'ecocash') {
+    await handleEcocashPayment(response, userId);
+  } else if (paymentMethod === 'web') {
     await handleWebPayment(response, userId);
   }
-  setUserState(userId, 'paynow');
-  let pollUrl = response.pollUrl;
-  let transaction = await pollTransactionWithRetries(pollUrl, paymentMethod);
 
-  if (transaction.status == 'paid') {
+  await setUserState(userId, 'paynow');
+
+  const pollUrl = response.pollUrl;
+  if (!pollUrl) {
+    logger.error('No poll URL provided', { userId, paymentMethod });
+    await sendMessage(userId, MessageTemplates.getGenericError());
+    return;
+  }
+
+  const transaction = await pollTransactionWithRetries(pollUrl, paymentMethod);
+
+  if (transaction.status === 'paid') {
     await processSuccessfulPayment(session, userId);
-  } else {
-    await sendMessage(userId, 'Payment failed, please try again😞');
+  } else if (transaction.status === 'cancelled') {
+    await sendMessage(
+      userId,
+      '❌ *Payment Cancelled*\n\nYour payment was cancelled. No charges were made.\n\nWould you like to try again or return to the main menu?'
+    );
     await mainMenu(session.userName || '', userId);
-    setUserState(userId, 'choose_option');
+    await setUserState(userId, 'choose_option');
+  } else if (
+    transaction.status === 'created' ||
+    transaction.status === 'sent' ||
+    transaction.status === 'awaiting delivery'
+  ) {
+    await sendMessage(
+      userId,
+      '⏳ *Payment Pending*\n\nYour payment is still being processed. This may take a few minutes.\n\nIf payment is successful, your tickets will be sent automatically. You can also check your tickets later using the "🎫 My Tickets" option.'
+    );
+    await mainMenu(session.userName || '', userId);
+    await setUserState(userId, 'choose_option');
+  } else {
+    await sendMessage(
+      userId,
+      '❌ *Payment Failed*\n\nYour payment could not be processed. Please check your account balance and try again.\n\nIf you continue to experience issues, please contact your mobile money provider.'
+    );
+    await mainMenu(session.userName || '', userId);
+    await setUserState(userId, 'choose_option');
   }
 };
 
 const handleInnbucksPayment = async (
-  response: any,
+  response: PaymentResponse,
   userId: string
 ): Promise<void> => {
-  const authCode = response.innbucks_info?.[0].authorizationcode;
+  const authCode = response.innbucks_info?.[0]?.authorizationcode;
   const spacedAuthCode = authCode
     ? authCode.toString().replace(/(\d{3})(?=\d)/g, '$1 ')
     : '';
-  const deepLink = response.innbucks_info?.[0].deep_link_url;
+  const deepLink = response.innbucks_info?.[0]?.deep_link_url;
 
-  let replyText =
-    'Use the order below to complete payment via USSD by dialing **569#* ';
-  await sendMessage(userId, replyText);
-  await sendMessage(userId, `*${spacedAuthCode}*`);
+  await sendMessage(
+    userId,
+    `🏦 *InnBucks Payment*\n\n*Option 1: USSD*\nDial *569# and use this authorization code:\n\n*${spacedAuthCode}*\n\n*OR*\n\n*Option 2: Mobile App*\nTap the button below to open InnBucks app:`
+  );
 
-  replyText = `*OR*`;
-  await sendMessage(userId, replyText);
+  if (deepLink) {
+    const header = '📱 InnBucks Mobile';
+    const body = 'Complete your payment using the InnBucks mobile application.';
+    const footer = '⚠️ Transaction expires in 10 minutes';
+    const buttonText = 'Open InnBucks App';
+    await sendUrlButton(userId, header, body, footer, buttonText, deepLink);
+  }
 
-  const header = 'InnBucks Mobile';
-  const body = 'Tap to open InnBucks mobile application to complete payment.';
-  const footer = 'Extra charges may apply.';
-  const buttonText = 'Open InnBucks';
-  await sendUrlButton(userId, header, body, footer, buttonText, deepLink || '');
+  await sendMessage(
+    userId,
+    "⏰ *Important:* You have 10 minutes to complete this payment. We'll notify you once the payment is confirmed."
+  );
+};
 
-  replyText = '*NOTE:* The transaction window will close in 10 minutes.';
-  await sendMessage(userId, replyText);
+const handleEcocashPayment = async (
+  response: PaymentResponse,
+  userId: string
+): Promise<void> => {
+  await sendMessage(
+    userId,
+    `📱 *EcoCash Payment Initiated*\n\nPlease check your phone for the EcoCash payment prompt and follow the instructions to complete your payment.\n\n⏰ You have 5 minutes to complete this transaction.\n\nWe'll notify you once payment is confirmed.`
+  );
 };
 
 const handleWebPayment = async (
-  response: any,
+  response: PaymentResponse,
   userId: string
 ): Promise<void> => {
-  const header = 'Complete Payment';
+  const header = '💳 Complete Payment';
   const body =
-    'Tap the button below to see other payment option and complete payment.';
-  const footer = 'Extra charges may apply.';
-  const buttonText = 'See Payment Options';
+    'Tap the button below to view payment options and complete your transaction securely.';
+  const footer = '🔒 Secure payment powered by Paynow';
+  const buttonText = 'View Payment Options';
+
   await sendUrlButton(
     userId,
     header,
@@ -129,40 +227,91 @@ const handleWebPayment = async (
     buttonText,
     response.redirectUrl || ''
   );
+
+  await sendMessage(
+    userId,
+    "⏰ *Payment Window:* You have 15 minutes to complete your payment. We'll automatically check for confirmation."
+  );
 };
 
 const pollTransactionWithRetries = async (
   pollUrl: string,
   paymentMethod: string
-): Promise<any> => {
+): Promise<TransactionStatus> => {
   let retries = 0;
   let delay = 5000;
   const backOffFactor = 2;
-  let maxRetries = paymentMethod == 'innbucks' ? 9 : 6;
-  let maxDelay = paymentMethod == 'innbucks' ? 600000 : 120000;
+  const maxRetries = paymentMethod === 'innbucks' ? 9 : 6;
+  const maxDelay = paymentMethod === 'innbucks' ? 600000 : 120000;
 
   while (retries < maxRetries) {
-    await new Promise((r) => setTimeout(r, delay));
-    const transaction = await paynow.pollTransaction(pollUrl);
-    console.log(transaction.status);
-    if (transaction.status === 'paid' || transaction.status === 'cancelled') {
-      return transaction;
+    await new Promise(r => setTimeout(r, delay));
+
+    try {
+      const transaction = await paynow.pollTransaction(pollUrl);
+      logger.debug('Transaction status check', {
+        status: transaction.status,
+        retries,
+        paymentMethod,
+      });
+
+      // Return immediately for final statuses
+      if (
+        transaction.status === 'paid' ||
+        transaction.status === 'cancelled' ||
+        transaction.status === 'failed'
+      ) {
+        return transaction;
+      }
+
+      // Continue polling for intermediate statuses
+      if (
+        transaction.status === 'created' ||
+        transaction.status === 'sent' ||
+        transaction.status === 'awaiting delivery'
+      ) {
+        logger.debug('Payment still processing', {
+          status: transaction.status,
+          retries,
+        });
+      }
+    } catch (error) {
+      logger.error('Error polling transaction', { error, retries, pollUrl });
     }
+
     retries++;
     delay = Math.min(delay * backOffFactor, maxDelay);
   }
-  return { status: 'failed' }; // Default to failed status if max retries exceeded
+
+  // If we've exhausted retries, return the last known status or default to failed
+  return { status: 'awaiting delivery' }; // More accurate than 'failed' since payment might still be processing
 };
 
-const processTicketPurchase = async (session: any) => {
+interface TicketCreationResult {
+  id: string;
+  eventId: string;
+  ticketTypeId: string;
+  nameOnTicket: string;
+  checkedIn: boolean | null;
+  qrCode: string | null;
+  pricePaid: string;
+  email: string;
+  phone: string;
+  deleted: boolean | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+  paymentStatus: string;
+}
+
+const processTicketPurchase = async (
+  session: SessionType
+): Promise<TicketCreationResult | null> => {
   const qrCodeText = uuidv4();
 
-  if (
-    !session.ticketTypes ||
-    !session.ticketTypes.length ||
-    !session.event ||
-    !session.phoneNumber
-  ) {
+  if (!session.ticketType || !session.event || !session.phoneNumber) {
+    logger.error('Missing required session data for ticket purchase', {
+      session,
+    });
     return null;
   }
 
@@ -174,12 +323,12 @@ const processTicketPurchase = async (session: any) => {
     eventEnd: session.event.end,
     nameOnTicket: session.userName,
     qrCode: qrCodeText,
-    ticketTypeId: session.ticketType.id, // Set the ticket type ID if applicable
-    status: 'paid', // Set the status of the ticket if applicable
-    fullName: session.userName || '', // Set the full name of the ticket holder
-    pricePaid: session.ticketType.price, // Set the price paid for the ticket if applicable
+    ticketTypeId: session.ticketType.id,
+    status: 'paid',
+    fullName: session.userName || '',
+    pricePaid: session.ticketType.price,
     email: 'purchases@mukoto.app',
-    phone: `263${session.phoneNumber.slice(1)}`, // Set the phone number of the ticket holder
+    phone: `263${session.phoneNumber.slice(1)}`,
     paymentStatus: 'paid',
   };
 
@@ -187,68 +336,129 @@ const processTicketPurchase = async (session: any) => {
 };
 
 const processSuccessfulPayment = async (
-  session: any,
+  session: SessionType,
   userId: string
 ): Promise<void> => {
-  await sendMessage(userId, 'Payment successful 🎉🎉🎉');
-  await sendMessage(userId, 'Please wait while we process your ticket⏳...');
-  for (let i = 0; i < (session.quantity || 0); i++) {
-    const res = await processTicketPurchase(session);
-    if (res && res.paymentStatus === 'paid') {
-      const ticket = {
-        id: res.id,
-        eventId: res.eventId,
-        ticketTypeId: res.ticketTypeId,
-        nameOnTicket: res.nameOnTicket,
-        checkedIn: res.checkedIn,
-        qrCode: res.qrCode,
-        pricePaid: res.pricePaid,
-        email: res.email,
-        phone: res.phone,
-        deleted: res.deleted,
-        createdAt: res.createdAt,
-        updatedAt: res.updatedAt,
-        paymentStatus: res.paymentStatus,
-        eventTitle: session.event.title,
-        eventDescription: session.event.description,
-        longitude: session.event.longitude,
-        latitude: session.event.latitude,
-        address: session.event.address,
-        location: session.event.location,
-        eventStart: session.event.start,
-        eventEnd: session.event.end,
-        ticketTypeName: session.ticketType.typeName,
-        organiserName: session.event.organiserName,
-      };
-      const generatedPDF = await generateTicket(ticket);
-      if (generatedPDF) {
-        console.log(`Generated PDF: ${generatedPDF.pdfName}`);
-        console.log(`PDF: ${generatedPDF.pdfName}`);
-        
-        
-        await sendDocument(
-          generatedPDF.pdfName.toLocaleLowerCase(),
-          generatedPDF.pdfUrl,
-          userId
-        );
+  const eventTitle = session.event?.title || 'Event';
+  const quantity = session.quantity || 1;
 
-        // Check if ticket delivery method is collection
-        if (session.event?.ticketDeliveryMethod === 'collection') {
-          await sendCollectionMessage(
+  // Send success message
+  await sendMessage(
+    userId,
+    `🎉 *Payment Successful!*\n\n✅ Your payment has been confirmed.\n🎫 Generating ${quantity} ticket${quantity > 1 ? 's' : ''} for *${eventTitle}*...\n\nPlease wait a moment while we prepare your tickets.`
+  );
+
+  let successfulTickets = 0;
+  const generatedTickets: { pdfName: string; pdfUrl: string }[] = [];
+
+  // Process all tickets first without sending them
+  for (let i = 0; i < quantity; i++) {
+    try {
+      const ticketResult = await processTicketPurchase(session);
+
+      if (ticketResult && ticketResult.paymentStatus === 'paid') {
+        const ticket = {
+          id: ticketResult.id,
+          eventId: ticketResult.eventId,
+          ticketTypeId: ticketResult.ticketTypeId,
+          nameOnTicket: ticketResult.nameOnTicket,
+          checkedIn: ticketResult.checkedIn,
+          qrCode: ticketResult.qrCode,
+          pricePaid: ticketResult.pricePaid,
+          email: ticketResult.email,
+          phone: ticketResult.phone,
+          deleted: ticketResult.deleted,
+          createdAt: ticketResult.createdAt,
+          updatedAt: ticketResult.updatedAt,
+          paymentStatus: ticketResult.paymentStatus,
+          eventTitle: session.event!.title,
+          eventDescription: session.event!.description,
+          longitude: session.event!.longitude,
+          latitude: session.event!.latitude,
+          address: session.event!.address,
+          location: session.event!.location,
+          eventStart: session.event!.start,
+          eventEnd: session.event!.end,
+          ticketTypeName: session.ticketType!.typeName,
+          organiserName: session.event!.organiserName,
+        };
+
+        const generatedPDF = await generateTicket(ticket);
+        if (generatedPDF) {
+          logger.info('Ticket PDF generated successfully', {
             userId,
-            session.event.title
-          );
+            ticketId: ticket.id,
+            pdfName: generatedPDF.pdfName,
+          });
+
+          generatedTickets.push(generatedPDF);
+          successfulTickets++;
+        } else {
+          logger.error('Failed to generate ticket PDF', {
+            userId,
+            ticketId: ticket.id,
+          });
         }
       }
+    } catch (error) {
+      logger.error('Error processing individual ticket', {
+        error,
+        userId,
+        ticketIndex: i,
+      });
+    }
+  }
+
+  // Now send results and tickets based on success
+  if (successfulTickets === quantity) {
+    // All tickets successful
+    await sendMessage(
+      userId,
+      `✅ *All Tickets Ready!*\n\n🎫 Successfully generated ${successfulTickets} ticket${successfulTickets > 1 ? 's' : ''} for *${eventTitle}*!\n\n📱 Your ticket${successfulTickets > 1 ? 's are' : ' is'} being sent now...`
+    );
+
+    // Send all tickets
+    for (const pdf of generatedTickets) {
+      await sendDocument(pdf.pdfName.toLowerCase(), pdf.pdfUrl, userId);
+    }
+
+    // Send final message with collection info if needed
+    if (session.event?.ticketDeliveryMethod === 'collection') {
+      await sendCollectionMessage(userId, session.event.title);
     } else {
       await sendMessage(
         userId,
-        'Error processing ticket, please visit the contact us for assistance😞'
+        `🎉 *You're All Set!*\n\nYour ticket${successfulTickets > 1 ? 's have' : ' has'} been delivered. Save ${successfulTickets > 1 ? 'them' : 'it'} to your device and bring ${successfulTickets > 1 ? 'them' : 'it'} to the event.\n\nThank you for using Mukoto! 🚀`
       );
-      await mainMenu(session.userName || '', userId);
-      setUserState(userId, 'choose_option');
-      break;
     }
+  } else if (successfulTickets > 0) {
+    // Partial success
+    await sendMessage(
+      userId,
+      `⚠️ *Partial Success*\n\n✅ ${successfulTickets} of ${quantity} tickets generated successfully.\n❌ ${quantity - successfulTickets} ticket${quantity - successfulTickets > 1 ? 's' : ''} failed to generate.\n\n📱 Sending your successful ticket${successfulTickets > 1 ? 's' : ''}...`
+    );
+
+    // Send successful tickets
+    for (const pdf of generatedTickets) {
+      await sendDocument(pdf.pdfName.toLowerCase(), pdf.pdfUrl, userId);
+    }
+
+    // Send collection message if required and final instructions
+    if (session.event?.ticketDeliveryMethod === 'collection') {
+      await sendCollectionMessage(userId, session.event.title);
+    }
+
+    await sendMessage(
+      userId,
+      '📞 *Next Steps:* Please contact support for assistance with the missing tickets using the contact information in your ticket.'
+    );
+  } else {
+    // Complete failure
+    await sendMessage(
+      userId,
+      '❌ *Ticket Generation Failed*\n\nYour payment was successful, but we encountered an issue generating your tickets. Please contact support with your payment confirmation.'
+    );
   }
-  setUserState(userId, 'menu');
+
+  await setUserState(userId, 'menu');
 };
