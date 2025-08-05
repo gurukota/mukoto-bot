@@ -1,8 +1,8 @@
 # Node.js
 node_modules/
-
 npm-debug.log
 yarn-error.log
+.yarn/
 
 # Dependency directories
 pnp/
@@ -19,6 +19,7 @@ pnp/
 dist/
 build/
 out/
+*.tsbuildinfo
 
 # Environment variables
 .env
@@ -28,6 +29,49 @@ out/
 .env.production.local
 
 # IDE files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs/
+*.log
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output
+
+# Temporary folders
+tmp/
+temp/
+
+# Runtime data
+pids
+*.pid
+*.seed
+
+# Backup files
+*_backup.*
+*_old.*
+
+# PDF files (generated tickets)
+downloads/
+*.pdf
 .vscode/
 .idea/
 *.iml

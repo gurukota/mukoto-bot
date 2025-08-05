@@ -1,26 +1,36 @@
 import WhatsAppCloudAPI from 'whatsappcloudapi_wrapper';
-import dotenv from 'dotenv';
 import axios from 'axios';
+import { config } from '../config/env.js';
+import { logger } from './logger.js';
+import { ExternalAPIError } from './errorHandler.js';
+
 // Define SimpleButton interface here since whatsapp.d.ts is not recognized as a module
 export interface SimpleButton {
   title: string;
   id: string;
 }
 
-dotenv.config();
-
 const whatsapp = new WhatsAppCloudAPI({
-  accessToken: process.env.WA_ACCESS_TOKEN || '',
-  senderPhoneNumberId: process.env.WA_PHONE_NUMBER_ID || '',
-  WABA_ID: process.env.WA_BUSINESS_ID || '',
-  graphAPIVersion: process.env.WA_API_VERSION || '',
+  accessToken: config.WA_ACCESS_TOKEN,
+  senderPhoneNumberId: config.WA_PHONE_NUMBER_ID,
+  WABA_ID: config.WA_BUSINESS_ID,
+  graphAPIVersion: config.WA_API_VERSION,
 });
 
 const sendMessage = async (to: string, message: string): Promise<void> => {
-  await whatsapp.sendText({
-    recipientPhone: to,
-    message,
-  });
+  try {
+    await whatsapp.sendText({
+      recipientPhone: to,
+      message,
+    });
+    logger.debug('Message sent successfully', {
+      to,
+      messageLength: message.length,
+    });
+  } catch (error) {
+    logger.error('Failed to send message', { to, error });
+    throw new ExternalAPIError('WhatsApp', 'Failed to send message');
+  }
 };
 
 const mainMenu = async (username: string, userId: string): Promise<void> => {
@@ -57,7 +67,7 @@ export const sendRadioButtons = async (
     {
       title: 'Hi there!',
       rows: dataArray
-        .map((data) => {
+        .map(data => {
           let title: string, description: string;
           switch (type) {
             case 'category':
@@ -218,7 +228,7 @@ const ticketTypeButton = async (
   ticketTypes: any[]
 ): Promise<void> => {
   const listOfButtons = ticketTypes
-    .map((type) => {
+    .map(type => {
       return {
         title:
           `${type.type_name} - ${type.price} ${type.currency_code}`.substring(

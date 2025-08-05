@@ -7,7 +7,13 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "nodemon --exec tsx src/server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "prepare": "husky install"
   },
   "keywords": [],
   "author": "",
@@ -36,9 +42,12 @@
     "@types/node": "^24.0.3",
     "@types/pg": "^8.15.4",
     "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "drizzle-kit": "^0.31.2",
     "eslint": "^9.0.0",
     "husky": "^9.0.11",
+    "lint-staged": "^15.0.0",
     "nodemon": "^3.1.10",
     "prettier": "^3.2.5",
     "ts-node": "^10.9.2",
@@ -51,10 +60,9 @@
     }
   },
   "lint-staged": {
-    "*.js": [
+    "*.{ts,js}": [
       "eslint --fix",
-      "prettier --write",
-      "git add"
+      "prettier --write"
     ]
   },
   "description": ""
