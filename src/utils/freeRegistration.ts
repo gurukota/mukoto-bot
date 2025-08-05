@@ -10,6 +10,7 @@ import { SessionType } from 'types/index.js';
 import { registerForFreeTicket } from '../repository/freeTicketsDal.js';
 import { updateEventSoldOutStatus } from './eventStatus.js';
 import { setUserState } from '../config/state.js';
+import { sendCollectionMessage } from './collectionMessage.js';
 
 /**
  * Process free ticket registration
@@ -96,6 +97,14 @@ export const processFreeRegistration = async (
         userId,
         'Your free ticket has been generated! Save this PDF for event entry.'
       );
+
+      // Check if ticket delivery method is collection
+      if (session.event.ticketDeliveryMethod === 'collection') {
+        await sendCollectionMessage(
+          userId,
+          session.event.title
+        );
+      }
     } else {
       await sendMessage(
         userId,

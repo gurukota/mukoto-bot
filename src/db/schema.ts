@@ -135,6 +135,7 @@ export const events = pgTable('tbl_events', {
   location: text('location').notNull(),
   country: varchar('country', { length: 100 }).notNull(),
   approveTickets: boolean('approveTickets').default(false).notNull(),
+  ticketDeliveryMethod: varchar('ticketDeliveryMethod', { length: 50 }),
   isActive: boolean('isActive').default(false).notNull(),
   soldOut: boolean('soldOut').default(false).notNull(),
   registrationDeadline: timestamp('registrationDeadline', {

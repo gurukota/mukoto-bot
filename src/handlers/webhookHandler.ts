@@ -38,6 +38,7 @@ import {
   TicketTypeType,
   UserType,
 } from 'types/index.js';
+import { sendCollectionMessage } from '../utils/collectionMessage.js';
 
 export const handleVerification = async (req: Request, res: Response) => {
   try {
@@ -201,6 +202,14 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                     generatedTicket.pdfUrl,
                     userId
                   );
+
+                  // Check if ticket delivery method is collection
+                  if (ticket.ticketDeliveryMethod === 'collection') {
+                    await sendCollectionMessage(
+                      userId,
+                      ticket.eventTitle
+                    );
+                  }
                 } else {
                   replyText = 'Tickets not found. Please try again.';
                   await sendMessage(userId, replyText);

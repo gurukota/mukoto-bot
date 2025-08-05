@@ -18,6 +18,7 @@ export type EventType = {
   location: string;
   country: string;
   approveTickets: boolean | null;
+  ticketDeliveryMethod?: string | null | undefined;
   isActive: boolean | null;
   soldOut: boolean | null;
   registrationDeadline?: string | null | undefined;
@@ -50,6 +51,7 @@ export type TicketType = {
   location: string;
   eventStart: string;
   eventEnd?: string | null | undefined;
+  ticketDeliveryMethod?: string | null | undefined;
   ticketTypeName: string;
   organiserName: string;
 };

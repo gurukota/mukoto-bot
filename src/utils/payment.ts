@@ -11,6 +11,7 @@ import {
 import { createTicket } from 'repository/ticketsDal.js';
 import { generateTicket } from './ticket.js';
 import { SessionType } from 'types/index.js';
+import { sendCollectionMessage } from './collectionMessage.js';
 
 dotenv.config();
 
@@ -230,6 +231,14 @@ const processSuccessfulPayment = async (
           generatedPDF.pdfUrl,
           userId
         );
+
+        // Check if ticket delivery method is collection
+        if (session.event?.ticketDeliveryMethod === 'collection') {
+          await sendCollectionMessage(
+            userId,
+            session.event.title
+          );
+        }
       }
     } else {
       await sendMessage(

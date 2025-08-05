@@ -26,6 +26,7 @@ export async function getTicketByPhone(phone: string) {
       location: events.location,
       eventStart: events.start,
       eventEnd: events.end,
+      ticketDeliveryMethod: events.ticketDeliveryMethod,
       ticketTypeName: ticketTypes.typeName,
       organiserName: organisers.name,
     })
