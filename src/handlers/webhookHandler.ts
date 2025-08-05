@@ -36,12 +36,15 @@ import {
   EventType,
   TicketType,
   TicketTypeType,
-  UserType,
 } from 'types/index.js';
 import { sendCollectionMessage } from '../utils/collectionMessage.js';
 import { logger } from '../utils/logger.js';
+import { MessageTemplates } from '../utils/messages.js';
 
-export const handleVerification = async (req: Request, res: Response) => {
+export const handleVerification = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
@@ -63,7 +66,12 @@ export const handleVerification = async (req: Request, res: Response) => {
   }
 };
 
-export const handleIncomingMessage = async (req: Request, res: Response) => {
+export const handleIncomingMessage = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  let userId: string | undefined;
+
   try {
     const data = whatsapp.parseMessage(req.body);
     let replyText = '';
@@ -71,7 +79,8 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
     if (data?.isMessage && data.message) {
       const message = data.message;
       const { from, type, text, button_reply, list_reply } = message;
-      const { phone: userId, name: userName } = from;
+      const { phone: userPhoneId, name: userName } = from;
+      userId = userPhoneId; // Store for error handling
       const userMessage = text?.body;
       const buttonId = button_reply?.id;
       const selectionId = list_reply?.id;
@@ -81,60 +90,61 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
         return;
       }
 
-      await setSession(userId, { userName });
+      await setSession(userPhoneId, { userName });
 
       if (
         typeof userMessage === 'string' &&
         validate(userMessage) &&
         version(userMessage) === 4
       ) {
-        const formattedUserId = userId.replace(/^263/, '0');
+        const formattedUserId = userPhoneId.replace(/^263/, '0');
         const user = await getUserByPhone(formattedUserId);
         if (user && user.canApproveTickets) {
           const checkTicket = await checkTicketByQRCode(userMessage);
           if (checkTicket) {
             replyText = !checkTicket.checkedIn
-              ? 'Ticket has been checked in successfully.'
-              : 'Ticket has checked in already. Please purchase another ticket!';
+              ? MessageTemplates.getTicketCheckInSuccess()
+              : MessageTemplates.getTicketAlreadyCheckedIn();
             if (!checkTicket.checkedIn) {
               await ticketCheckIn(userMessage);
             }
           } else {
-            replyText = 'Invalid ticket QR code. Please try again.';
+            replyText = MessageTemplates.getInvalidQRCode();
           }
-          await sendMessage(userId, replyText);
+          await sendMessage(userPhoneId, replyText);
         }
-        await setUserState(userId, 'menu');
+        await setUserState(userPhoneId, 'menu');
       }
 
-      if (!(await getUserState(userId))) {
-        await setUserState(userId, 'menu');
+      if (!(await getUserState(userPhoneId))) {
+        await setUserState(userPhoneId, 'menu');
       }
 
-      const session = await getSession(userId);
-      const userState = await getUserState(userId);
+      const session = await getSession(userPhoneId);
+      const userState = await getUserState(userPhoneId);
 
       switch (userState) {
         case 'menu':
-          await mainMenu(userName, userId);
-          await setUserState(userId, 'choose_option');
+          await mainMenu(userName, userPhoneId);
+          await setUserState(userPhoneId, 'choose_option');
           break;
 
         case 'choose_option':
           if (type === 'simple_button_message') {
             switch (buttonId) {
-              case '_find_event':
-                replyText = 'Choose how you would like to find an event:';
+              case '_find_event': {
+                replyText = MessageTemplates.getEventDiscoveryPrompt();
                 const findEventButtons: SimpleButton[] = [
-                  { title: 'Find by search', id: '_event_by_search' },
-                  { title: 'Find by category', id: '_event_by_category' },
+                  { title: '🔎 Search Events', id: '_event_by_search' },
+                  { title: '📂 Browse Categories', id: '_event_by_category' },
                 ];
-                await sendButtons(userId, replyText, findEventButtons);
-                await setUserState(userId, 'find_event');
+                await sendButtons(userPhoneId, replyText, findEventButtons);
+                await setUserState(userPhoneId, 'find_event');
                 break;
-              case '_view_resend_ticket':
-                const tickets = await getTicketByPhone(userId);
-                await setSession(userId, { tickets });
+              }
+              case '_view_resend_ticket': {
+                const tickets = await getTicketByPhone(userPhoneId);
+                await setSession(userPhoneId, { tickets });
                 if (tickets.length > 0) {
                   const processedEventIds = new Set<string>();
                   const events = [];
@@ -154,37 +164,39 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                     'Select an event to get your ticket.',
                     'Powered by: Your Address Tech',
                     'Select Event',
-                    userId,
+                    userPhoneId,
                     'event'
                   );
-                  await setUserState(userId, 'resend_ticket');
+                  await setUserState(userPhoneId, 'resend_ticket');
                 } else {
-                  replyText = 'Ticket(s) not found. Please try again.';
-                  await sendMessage(userId, replyText);
-                  await mainMenu(userName, userId);
-                  await setUserState(userId, 'choose_option');
+                  replyText = MessageTemplates.getTicketNotFound();
+                  await sendMessage(userPhoneId, replyText);
+                  await mainMenu(userName, userPhoneId);
+                  await setUserState(userPhoneId, 'choose_option');
                 }
                 break;
-              case '_utilities':
-                replyText = 'Choose a utility option:';
+              }
+              case '_utilities': {
+                replyText = MessageTemplates.getUtilityOptions();
                 const utilityButtons: SimpleButton[] = [
-                  { title: 'Event Location', id: '_event_location' },
+                  { title: '📍 Event Locations', id: '_event_location' },
                 ];
-                await sendButtons(userId, replyText, utilityButtons);
-                await setUserState(userId, 'utilities');
+                await sendButtons(userPhoneId, replyText, utilityButtons);
+                await setUserState(userPhoneId, 'utilities');
                 break;
+              }
               default:
-                replyText = 'Please choose an option from the menu.';
-                await sendMessage(userId, replyText);
-                await mainMenu(userName, userId);
-                await setUserState(userId, 'choose_option');
+                replyText = MessageTemplates.getInvalidOption();
+                await sendMessage(userPhoneId, replyText);
+                await mainMenu(userName, userPhoneId);
+                await setUserState(userPhoneId, 'choose_option');
                 break;
             }
           } else {
-            replyText = 'Please choose an option from the menu.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getMenuPrompt();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
@@ -200,62 +212,60 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                   await sendDocument(
                     generatedTicket.pdfName.toLowerCase(),
                     generatedTicket.pdfUrl,
-                    userId
+                    userPhoneId
                   );
 
                   // Check if ticket delivery method is collection
                   if (ticket.ticketDeliveryMethod === 'collection') {
-                    await sendCollectionMessage(userId, ticket.eventTitle);
+                    await sendCollectionMessage(userPhoneId, ticket.eventTitle);
                   }
                 } else {
                   replyText = 'Tickets not found. Please try again.';
-                  await sendMessage(userId, replyText);
+                  await sendMessage(userPhoneId, replyText);
                 }
               }
             } else {
               replyText = 'Tickets not found. Please try again.';
-              await sendMessage(userId, replyText);
+              await sendMessage(userPhoneId, replyText);
             }
           } else {
             replyText = 'You have not selected any event. Please try again.';
-            await sendMessage(userId, replyText);
+            await sendMessage(userPhoneId, replyText);
           }
-          await mainMenu(userName, userId);
-          await setUserState(userId, 'choose_option');
+          await mainMenu(userName, userPhoneId);
+          await setUserState(userPhoneId, 'choose_option');
           break;
 
         case 'find_event':
           if (type === 'simple_button_message') {
             if (buttonId === '_event_by_search') {
-              replyText =
-                'Please enter the name or type of event you are interested in:';
-              await sendMessage(userId, replyText);
-              await setUserState(userId, 'search_event');
+              replyText = MessageTemplates.getSearchEventPrompt();
+              await sendMessage(userPhoneId, replyText);
+              await setUserState(userPhoneId, 'search_event');
             } else {
               const eventCategories: CategoryType[] = await getCategories();
               if (eventCategories.length === 0) {
-                replyText =
-                  'No event categories found. Please try again later.';
-                await sendMessage(userId, replyText);
-                await mainMenu(userName, userId);
-                await setUserState(userId, 'choose_option');
+                replyText = MessageTemplates.getCategoryNoEvents();
+                await sendMessage(userPhoneId, replyText);
+                await mainMenu(userName, userPhoneId);
+                await setUserState(userPhoneId, 'choose_option');
               } else {
                 await sendRadioButtons(
                   eventCategories,
-                  '#Mukoto Events🚀',
-                  'Select a category to view events.',
+                  '📂 Event Categories',
+                  MessageTemplates.getCategorySelectionPrompt(),
                   'Powered by: Your Address Tech',
                   'Select Category',
-                  userId,
+                  userPhoneId,
                   'category'
                 );
-                await setUserState(userId, 'find_event_by_category');
+                await setUserState(userPhoneId, 'find_event_by_category');
               }
             }
           } else {
-            replyText = 'Please choose an option from the menu.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
+            replyText = MessageTemplates.getMenuPrompt();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
           }
           break;
 
@@ -263,26 +273,28 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
           if (typeof userMessage === 'string') {
             const events: EventType[] = await searchEvents(userMessage);
             if (events.length === 0) {
-              replyText =
-                'No events found for your search. Would you like to try again?';
+              replyText = MessageTemplates.getEventSearchResults(0);
               const fallbackButtons: SimpleButton[] = [
-                { title: 'Yes', id: '_find_event' },
-                { title: 'Main Menu', id: '_main_menu' },
+                { title: '🔄 Try Again', id: '_find_event' },
+                { title: '🏠 Main Menu', id: '_main_menu' },
               ];
-              await sendButtons(userId, replyText, fallbackButtons);
-              await setUserState(userId, 'event_fallback');
+              await sendButtons(userPhoneId, replyText, fallbackButtons);
+              await setUserState(userPhoneId, 'event_fallback');
             } else {
+              const headerText = MessageTemplates.getEventSearchResults(
+                events.length
+              );
               await sendRadioButtons(
                 events,
-                '#Mukoto Events🚀',
-                'Here are the events we found.',
+                '🎉 Search Results',
+                headerText,
                 'Powered by: Your Address Tech',
                 'Select Event',
-                userId,
+                userPhoneId,
                 'event'
               );
-              await setSession(userId, { events });
-              await setUserState(userId, 'show_event');
+              await setSession(userPhoneId, { events });
+              await setUserState(userPhoneId, 'show_event');
             }
           }
           break;
@@ -291,26 +303,25 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
           if (type === 'radio_button_message' && selectionId) {
             const events: EventType[] = await getEventsByCategory(selectionId);
             if (events.length === 0) {
-              replyText =
-                'No events found for this category. Find another event?';
+              replyText = MessageTemplates.getCategoryNoEvents();
               const fallbackButtons: SimpleButton[] = [
-                { title: 'Yes', id: '_find_event' },
-                { title: 'Main Menu', id: '_main_menu' },
+                { title: '🔄 Find Events', id: '_find_event' },
+                { title: '🏠 Main Menu', id: '_main_menu' },
               ];
-              await sendButtons(userId, replyText, fallbackButtons);
-              await setUserState(userId, 'event_fallback');
+              await sendButtons(userPhoneId, replyText, fallbackButtons);
+              await setUserState(userPhoneId, 'event_fallback');
             } else {
               await sendRadioButtons(
                 events,
-                '#Mukoto Events🚀',
-                'Here are the events in this category.',
+                '🎯 Category Events',
+                `Here are the available events in this category:`,
                 'Powered by: Your Address Tech',
                 'Select Event',
-                userId,
+                userPhoneId,
                 'event'
               );
-              await setSession(userId, { events });
-              await setUserState(userId, 'show_event');
+              await setSession(userPhoneId, { events });
+              await setUserState(userPhoneId, 'show_event');
             }
           }
           break;
@@ -322,30 +333,36 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
             );
             if (event) {
               const formattedDate = moment(event.start).format(
-                'dddd, MMMM Do YYYY, h:mm:ss a'
+                'dddd, MMMM Do YYYY, h:mm a'
               );
-              let text = `*${event.title.trim()}*\n`;
-              text += `${event.description?.trim()}\n`;
-              text += `*${formattedDate}*\n`;
-              text += `*${event.location}*`;
+              const eventDetails = MessageTemplates.formatEventDetails(
+                event.title,
+                event.description || null,
+                formattedDate,
+                event.location
+              );
+
               if (event.image) {
-                await sendImage(userId, event.image, text);
+                await sendImage(userPhoneId, event.image, eventDetails);
                 await new Promise(r => setTimeout(r, 2000));
+              } else {
+                await sendMessage(userPhoneId, eventDetails);
+                await new Promise(r => setTimeout(r, 1000));
               }
-              await purchaseButtons(userId, selectionId);
-              await setSession(userId, { event });
-              await setUserState(userId, 'choosen_event_options');
+              await purchaseButtons(userPhoneId, selectionId);
+              await setSession(userPhoneId, { event });
+              await setUserState(userPhoneId, 'choosen_event_options');
             } else {
-              replyText = 'Event not found. Please try again.';
-              await sendMessage(userId, replyText);
-              await mainMenu(userName, userId);
-              await setUserState(userId, 'choose_option');
+              replyText = MessageTemplates.getEventNotFound();
+              await sendMessage(userPhoneId, replyText);
+              await mainMenu(userName, userPhoneId);
+              await setUserState(userPhoneId, 'choose_option');
             }
           } else {
-            replyText = 'Select an event from the list. Please try again.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getSelectionRequired();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
@@ -358,39 +375,38 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               if (ticketTypes.length > 0) {
                 await sendRadioButtons(
                   ticketTypes,
-                  '#Mukoto Events🚀',
-                  'Select a ticket type.',
+                  '🎟️ Available Tickets',
+                  MessageTemplates.getTicketTypeSelection(),
                   'Powered by: Your Address Tech',
                   'Select Ticket Type',
-                  userId,
+                  userPhoneId,
                   'ticket_type'
                 );
-                await setUserState(userId, 'choose_ticket_type');
-                await setSession(userId, { ticketTypes });
+                await setUserState(userPhoneId, 'choose_ticket_type');
+                await setSession(userPhoneId, { ticketTypes });
               } else {
-                replyText =
-                  'There are no tickets for this event. Please try again later.';
-                await sendMessage(userId, replyText);
-                await mainMenu(userName, userId);
-                await setUserState(userId, 'choose_option');
+                replyText = MessageTemplates.getNoTicketTypesAvailable();
+                await sendMessage(userPhoneId, replyText);
+                await mainMenu(userName, userPhoneId);
+                await setUserState(userPhoneId, 'choose_option');
               }
             } else if (buttonId === '_find_event') {
-              replyText = 'Choose how you would like to find an event:';
+              replyText = MessageTemplates.getEventDiscoveryPrompt();
               const findEventButtons: SimpleButton[] = [
-                { title: 'Find by search', id: '_event_by_search' },
-                { title: 'Find by category', id: '_event_by_category' },
+                { title: '🔎 Search Events', id: '_event_by_search' },
+                { title: '📂 Browse Categories', id: '_event_by_category' },
               ];
-              await sendButtons(userId, replyText, findEventButtons);
-              await setUserState(userId, 'find_event');
+              await sendButtons(userPhoneId, replyText, findEventButtons);
+              await setUserState(userPhoneId, 'find_event');
             } else if (buttonId === '_main_menu') {
-              await mainMenu(userName, userId);
-              await setUserState(userId, 'choose_option');
+              await mainMenu(userName, userPhoneId);
+              await setUserState(userPhoneId, 'choose_option');
             }
           } else {
-            replyText = 'Choose a valid option. Please try again.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getInvalidOption();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
@@ -400,137 +416,145 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               (t: TicketTypeType) => t.id === selectionId
             );
             if (ticketType) {
-              await setSession(userId, { ticketType });
+              await setSession(userPhoneId, { ticketType });
 
               // Check if this is a free ticket (price = 0)
               if (Number(ticketType.price) === 0) {
-                replyText = `You have selected ${ticketType.typeName}. Would you like to register for this event?`;
+                replyText = MessageTemplates.getFreeRegistrationConfirmation(
+                  ticketType.typeName
+                );
                 const freeTicketButtons: SimpleButton[] = [
-                  { title: 'Yes, Register', id: '_free_register' },
-                  { title: 'Cancel', id: '_cancel_registration' },
+                  { title: '✅ Yes, Register', id: '_free_register' },
+                  { title: '❌ Cancel', id: '_cancel_registration' },
                 ];
-                await sendButtons(userId, replyText, freeTicketButtons);
-                await setUserState(userId, 'confirm_free_registration');
+                await sendButtons(userPhoneId, replyText, freeTicketButtons);
+                await setUserState(userPhoneId, 'confirm_free_registration');
               } else {
-                replyText = `You have selected ${ticketType.typeName}. How many tickets do you want to buy?`;
-                await sendMessage(userId, replyText);
-                await setUserState(userId, 'enter_ticket_quantity');
+                replyText = MessageTemplates.getTicketQuantityPrompt(
+                  ticketType.typeName
+                );
+                await sendMessage(userPhoneId, replyText);
+                await setUserState(userPhoneId, 'enter_ticket_quantity');
               }
             } else {
-              replyText = 'Please select a ticket type. Please try again.';
-              await sendMessage(userId, replyText);
-              await mainMenu(userName, userId);
-              await setUserState(userId, 'choose_option');
+              replyText = MessageTemplates.getTicketTypeNotFound();
+              await sendMessage(userPhoneId, replyText);
+              await mainMenu(userName, userPhoneId);
+              await setUserState(userPhoneId, 'choose_option');
             }
           } else {
-            replyText = 'Please select a ticket type. Please try again.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getSelectionRequired();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
         case 'confirm_free_registration':
           if (type === 'simple_button_message') {
             if (buttonId === '_free_register') {
-              await processFreeRegistration(session, userId);
+              await processFreeRegistration(session, userPhoneId);
             } else if (buttonId === '_cancel_registration') {
-              await sendMessage(userId, 'Registration cancelled.');
-              await mainMenu(userName, userId);
-              await setUserState(userId, 'choose_option');
+              await sendMessage(userPhoneId, '❌ Registration cancelled.');
+              await mainMenu(userName, userPhoneId);
+              await setUserState(userPhoneId, 'choose_option');
             }
           } else {
-            replyText = 'Please choose an option.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getInvalidOption();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
-        case 'enter_ticket_quantity':
+        case 'enter_ticket_quantity': {
           const quantity = parseInt(String(userMessage));
           if (isNaN(quantity) || quantity < 1 || quantity > 10) {
-            replyText =
+            replyText = MessageTemplates.getInvalidQuantityMessage(
               quantity > 10
-                ? 'You can only purchase a maximum of 10 tickets. Please try again.'
-                : 'Enter a valid number of tickets.';
-            await sendMessage(userId, replyText);
-            await setUserState(userId, 'enter_ticket_quantity');
+            );
+            await sendMessage(userPhoneId, replyText);
+            await setUserState(userPhoneId, 'enter_ticket_quantity');
           } else {
             if (session.ticketType) {
               const total = quantity * Number(session.ticketType.price);
-              replyText = `You have selected ${quantity} tickets of ${session.ticketType.typeName} type. The total cost is *${total} ${session.ticketType.currencyCode}*. *Charges may apply*. Please confirm payment method.`;
-              await paymentMethodButtons(userId, replyText);
-              await setSession(userId, { total, quantity });
-              await setUserState(userId, 'choose_payment_method');
+              replyText = MessageTemplates.getPurchaseConfirmation(
+                quantity,
+                session.ticketType.typeName,
+                total,
+                session.ticketType.currencyCode
+              );
+              await paymentMethodButtons(userPhoneId, replyText);
+              await setSession(userPhoneId, { total, quantity });
+              await setUserState(userPhoneId, 'choose_payment_method');
             }
           }
           break;
+        }
 
         case 'choose_payment_method':
           if (type === 'simple_button_message') {
             const paymentMethod = buttonId?.substring(1); // remove '_'
-            await setSession(userId, { paymentMethod });
+            await setSession(userPhoneId, { paymentMethod });
             if (paymentMethod === 'web') {
-              const phoneNumber = userId.replace(/^263/, '0');
-              await setSession(userId, { phoneNumber });
-              await processPayment(session, userId);
+              const phoneNumber = userPhoneId.replace(/^263/, '0');
+              await setSession(userPhoneId, { phoneNumber });
+              await processPayment(session, userPhoneId);
             } else {
-              replyText = 'Choose a payment number:';
-              await paymentNumberButtons(userId, replyText);
-              await setUserState(userId, 'choose_phone_number');
+              replyText =
+                '📱 *Payment Number*\n\nWhich phone number would you like to use for payment?';
+              await paymentNumberButtons(userPhoneId, replyText);
+              await setUserState(userPhoneId, 'choose_phone_number');
             }
           }
           break;
 
         case 'choose_phone_number':
           if (buttonId === '_use_this_number') {
-            const phoneNumber = userId.replace(/^263/, '0');
-            await setSession(userId, { phoneNumber });
-            await processPayment(session, userId);
+            const phoneNumber = userPhoneId.replace(/^263/, '0');
+            await setSession(userPhoneId, { phoneNumber });
+            await processPayment(session, userPhoneId);
           } else if (buttonId === '_other_payment_number') {
-            replyText =
-              'Please enter the desired transact number: for example *0771111111*';
-            await sendMessage(userId, replyText);
-            await setUserState(userId, 'other_phone_number');
+            replyText = MessageTemplates.getCustomPhonePrompt();
+            await sendMessage(userPhoneId, replyText);
+            await setUserState(userPhoneId, 'other_phone_number');
           }
           break;
 
         case 'other_phone_number':
           if (typeof userMessage === 'string') {
-            await setSession(userId, { phoneNumber: userMessage });
-            await processPayment(session, userId);
+            await setSession(userPhoneId, { phoneNumber: userMessage });
+            await processPayment(session, userPhoneId);
           }
           break;
 
         case 'event_fallback':
           if (type === 'simple_button_message') {
             if (buttonId === '_find_event') {
-              replyText =
-                'Please enter the name or type of event you are interested in:';
-              await sendMessage(userId, replyText);
-              await setUserState(userId, 'search_event');
+              replyText = MessageTemplates.getSearchEventPrompt();
+              await sendMessage(userPhoneId, replyText);
+              await setUserState(userPhoneId, 'search_event');
             } else if (buttonId === '_main_menu') {
-              await mainMenu(userName, userId);
-              await setUserState(userId, 'choose_option');
+              await mainMenu(userName, userPhoneId);
+              await setUserState(userPhoneId, 'choose_option');
             }
           } else {
-            replyText = 'Please choose an option from the menu.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getMenuPrompt();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
         case 'utilities':
           if (type === 'simple_button_message') {
-            const tickets: TicketType[] = await getTicketByPhone(userId);
+            const tickets: TicketType[] = await getTicketByPhone(userPhoneId);
 
             if (tickets.length === 0) {
-              replyText = 'You have no tickets to view event locations.';
-              await sendMessage(userId, replyText);
-              await mainMenu(userName, userId);
-              await setUserState(userId, 'choose_option');
+              replyText = MessageTemplates.getNoTicketsForLocation();
+              await sendMessage(userPhoneId, replyText);
+              await mainMenu(userName, userPhoneId);
+              await setUserState(userPhoneId, 'choose_option');
             } else {
               const events = [];
               const processedEventIds = new Set<string>();
@@ -544,23 +568,23 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
                   processedEventIds.add(ticket.eventId);
                 }
               }
-              await setSession(userId, { tickets });
+              await setSession(userPhoneId, { tickets });
               await sendRadioButtons(
                 events,
-                '#Mukoto Events🚀',
-                'Select an event to view its location.',
+                '📍 Event Locations',
+                MessageTemplates.getLocationPrompt(),
                 'Powered by: Your Address Tech',
                 'Select Event',
-                userId,
+                userPhoneId,
                 'event'
               );
-              await setUserState(userId, 'send_event_location');
+              await setUserState(userPhoneId, 'send_event_location');
             }
           } else {
-            replyText = 'Select a valid option. Please try again.';
-            await sendMessage(userId, replyText);
-            await mainMenu(userName, userId);
-            await setUserState(userId, 'choose_option');
+            replyText = MessageTemplates.getInvalidOption();
+            await sendMessage(userPhoneId, replyText);
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
           }
           break;
 
@@ -576,19 +600,19 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
               ticket?.address
             ) {
               await sendLocation(
-                userId,
+                userPhoneId,
                 parseFloat(ticket.latitude),
                 parseFloat(ticket.longitude),
                 ticket.location,
                 ticket.address
               );
             } else {
-              replyText = 'Event not found. Please try again.';
-              await sendMessage(userId, replyText);
+              replyText = MessageTemplates.getEventNotFound();
+              await sendMessage(userPhoneId, replyText);
             }
           }
-          await mainMenu(userName, userId);
-          await setUserState(userId, 'choose_option');
+          await mainMenu(userName, userPhoneId);
+          await setUserState(userPhoneId, 'choose_option');
           break;
 
         case 'paynow':
@@ -596,16 +620,32 @@ export const handleIncomingMessage = async (req: Request, res: Response) => {
           break;
 
         default:
-          logger.warn('Unhandled user state', { userState, userId });
-          await mainMenu(userName, userId);
-          await setUserState(userId, 'choose_option');
+          logger.warn('Unhandled user state', {
+            userState,
+            userId: userPhoneId,
+          });
+          await mainMenu(userName, userPhoneId);
+          await setUserState(userPhoneId, 'choose_option');
       }
     } else {
       logger.debug('Not a message');
     }
     res.sendStatus(200);
   } catch (error) {
-    logger.error('Error in handleIncomingMessage', { error });
+    logger.error('Error in handleIncomingMessage', { error, userId });
+
+    // Send user-friendly error message
+    try {
+      if (userId) {
+        await sendMessage(userId, MessageTemplates.getGenericError());
+      }
+    } catch (sendError) {
+      logger.error('Failed to send error message to user', {
+        sendError,
+        userId,
+      });
+    }
+
     res.sendStatus(500);
   }
 };

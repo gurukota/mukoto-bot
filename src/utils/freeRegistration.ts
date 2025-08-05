@@ -1,16 +1,11 @@
-import { v4 as uuidv4 } from 'uuid';
-import {
-  mainMenu,
-  sendMessage,
-  sendDocument,
-} from './whatsapp.js';
-import { createTicket } from 'repository/ticketsDal.js';
+import { mainMenu, sendMessage, sendDocument } from './whatsapp.js';
 import { generateTicket } from './ticket.js';
 import { SessionType } from 'types/index.js';
 import { registerForFreeTicket } from '../repository/freeTicketsDal.js';
 import { updateEventSoldOutStatus } from './eventStatus.js';
 import { setUserState } from '../config/state.js';
-import { sendCollectionMessage } from './collectionMessage.js';
+import { MessageTemplates } from './messages.js';
+import { logger } from './logger.js';
 
 /**
  * Process free ticket registration
@@ -20,12 +15,22 @@ export const processFreeRegistration = async (
   userId: string
 ): Promise<void> => {
   try {
-    await sendMessage(userId, 'Processing your registration...');
+    await sendMessage(
+      userId,
+      '⏳ *Processing Registration*\n\nPlease wait while we register you for this event...'
+    );
 
     if (!session.ticketType || !session.event || !session.userName) {
+      logger.error('Free registration failed: Missing session data', {
+        userId,
+        hasTicketType: !!session.ticketType,
+        hasEvent: !!session.event,
+        hasUserName: !!session.userName,
+      });
+
       await sendMessage(
         userId,
-        'Registration failed: Missing required information. Please try again.'
+        '❌ *Registration Failed*\n\nMissing required information. Please start over and try again.'
       );
       await mainMenu(session.userName || '', userId);
       setUserState(userId, 'choose_option');
@@ -44,9 +49,15 @@ export const processFreeRegistration = async (
     );
 
     if (!registrationResult.success || !registrationResult.ticket) {
+      logger.warn('Free registration failed', {
+        userId,
+        reason: registrationResult.reason,
+        eventId: session.event.id,
+      });
+
       await sendMessage(
         userId,
-        `Registration failed: ${registrationResult.reason}`
+        `❌ *Registration Failed*\n\n${registrationResult.reason || 'Unable to process registration'}\n\nPlease try again or contact support.`
       );
       await mainMenu(session.userName || '', userId);
       setUserState(userId, 'choose_option');
@@ -54,10 +65,16 @@ export const processFreeRegistration = async (
     }
 
     // Generate success message
-    await sendMessage(userId, '🎉 Registration successful!');
-    
+    await sendMessage(
+      userId,
+      MessageTemplates.getRegistrationSuccess(session.event.title)
+    );
+
     // Generate and send the ticket
-    await sendMessage(userId, 'Generating your ticket...');
+    await sendMessage(
+      userId,
+      '📄 *Generating Ticket*\n\nPlease wait while we create your ticket...'
+    );
 
     const ticket = {
       id: registrationResult.ticket.id,
@@ -86,29 +103,32 @@ export const processFreeRegistration = async (
     };
 
     const generatedPDF = await generateTicket(ticket);
-    
+
     if (generatedPDF) {
       await sendDocument(
         generatedPDF.pdfName.toLowerCase(),
         generatedPDF.pdfUrl,
         userId
       );
-      await sendMessage(
-        userId,
-        'Your free ticket has been generated! Save this PDF for event entry.'
-      );
+      await sendMessage(userId, MessageTemplates.getTicketSent());
 
       // Check if ticket delivery method is collection
       if (session.event.ticketDeliveryMethod === 'collection') {
-        await sendCollectionMessage(
+        await sendMessage(
           userId,
-          session.event.title
+          MessageTemplates.getCollectionReminder(session.event.title)
         );
       }
     } else {
+      logger.error('PDF generation failed for free registration', {
+        userId,
+        ticketId: registrationResult.ticket.id,
+        eventId: session.event.id,
+      });
+
       await sendMessage(
         userId,
-        'Ticket registered successfully, but PDF generation failed. Please contact support.'
+        '✅ *Registration Successful*\n\n❌ However, ticket PDF generation failed. Your registration is confirmed, but please contact support for your ticket document.'
       );
     }
 
@@ -117,13 +137,15 @@ export const processFreeRegistration = async (
 
     await mainMenu(session.userName || '', userId);
     setUserState(userId, 'choose_option');
-
   } catch (error) {
-    console.error('Error processing free registration:', error);
-    await sendMessage(
+    logger.error('Error processing free registration', {
+      error,
       userId,
-      'An error occurred during registration. Please try again.'
-    );
+      eventId: session.event?.id,
+      ticketTypeId: session.ticketType?.id,
+    });
+
+    await sendMessage(userId, MessageTemplates.getGenericError());
     await mainMenu(session.userName || '', userId);
     setUserState(userId, 'choose_option');
   }

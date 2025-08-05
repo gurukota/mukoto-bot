@@ -34,24 +34,30 @@ const sendMessage = async (to: string, message: string): Promise<void> => {
 };
 
 const mainMenu = async (username: string, userId: string): Promise<void> => {
-  await whatsapp.sendSimpleButtons({
-    message: `Hey ${username}, Welcome to Mukoto😎, your personal event ticketing assistant🚀. How can I help you today?`,
-    recipientPhone: userId,
-    listOfButtons: [
-      {
-        title: 'Find an event',
-        id: '_find_event',
-      },
-      {
-        title: 'Utilities',
-        id: '_utilities',
-      },
-      {
-        title: 'View Tickets',
-        id: '_view_resend_ticket',
-      },
-    ],
-  });
+  try {
+    await whatsapp.sendSimpleButtons({
+      message: `Hello ${username}! 👋\n\nWelcome to *Mukoto* 🎫 - your personal event ticketing assistant.\n\nI'm here to help you discover amazing events and manage your tickets effortlessly. What would you like to do today?`,
+      recipientPhone: userId,
+      listOfButtons: [
+        {
+          title: '🔍 Find Events',
+          id: '_find_event',
+        },
+        {
+          title: '🎫 My Tickets',
+          id: '_view_resend_ticket',
+        },
+        {
+          title: '🛠️ Utilities',
+          id: '_utilities',
+        },
+      ],
+    });
+    logger.debug('Main menu sent successfully', { username, userId });
+  } catch (error) {
+    logger.error('Failed to send main menu', { username, userId, error });
+    throw new ExternalAPIError('WhatsApp', 'Failed to send main menu');
+  }
 };
 
 export const sendRadioButtons = async (
@@ -127,24 +133,30 @@ const purchaseButtons = async (
   userId: string,
   eventId: string
 ): Promise<void> => {
-  await whatsapp.sendSimpleButtons({
-    recipientPhone: userId,
-    message: 'Here is the event, what do you want to do next?',
-    listOfButtons: [
-      {
-        title: 'Purchase Ticket',
-        id: '_purchase',
-      },
-      {
-        title: 'Find More Events',
-        id: '_find_event',
-      },
-      {
-        title: 'Main Menu',
-        id: '_main_menu',
-      },
-    ],
-  });
+  try {
+    await whatsapp.sendSimpleButtons({
+      recipientPhone: userId,
+      message: '🎫 *Event Details*\n\nWhat would you like to do next?',
+      listOfButtons: [
+        {
+          title: '💳 Purchase Ticket',
+          id: '_purchase',
+        },
+        {
+          title: '🔍 Find More Events',
+          id: '_find_event',
+        },
+        {
+          title: '🏠 Main Menu',
+          id: '_main_menu',
+        },
+      ],
+    });
+    logger.debug('Purchase buttons sent successfully', { userId, eventId });
+  } catch (error) {
+    logger.error('Failed to send purchase buttons', { userId, eventId, error });
+    throw new ExternalAPIError('WhatsApp', 'Failed to send purchase buttons');
+  }
 };
 
 const initiatePurchaseButtons = async (
@@ -171,24 +183,33 @@ const paymentMethodButtons = async (
   userId: string,
   replyText: string
 ): Promise<void> => {
-  await whatsapp.sendSimpleButtons({
-    recipientPhone: userId,
-    message: replyText,
-    listOfButtons: [
-      {
-        title: 'Ecocash',
-        id: '_ecocash',
-      },
-      {
-        title: 'InnBucks',
-        id: '_innbucks',
-      },
-      // {
-      //   title: 'Other',
-      //   id: '_other_payment_methods',
-      // },
-    ],
-  });
+  try {
+    await whatsapp.sendSimpleButtons({
+      recipientPhone: userId,
+      message: replyText,
+      listOfButtons: [
+        {
+          title: '💰 EcoCash',
+          id: '_ecocash',
+        },
+        {
+          title: '🏦 InnBucks',
+          id: '_innbucks',
+        },
+        {
+          title: '🌐 Web Payment',
+          id: '_web',
+        },
+      ],
+    });
+    logger.debug('Payment method buttons sent successfully', { userId });
+  } catch (error) {
+    logger.error('Failed to send payment method buttons', { userId, error });
+    throw new ExternalAPIError(
+      'WhatsApp',
+      'Failed to send payment method buttons'
+    );
+  }
 };
 
 export const sendButtons = async (
@@ -207,20 +228,29 @@ const paymentNumberButtons = async (
   userId: string,
   replyText: string
 ): Promise<void> => {
-  await whatsapp.sendSimpleButtons({
-    recipientPhone: userId,
-    message: replyText,
-    listOfButtons: [
-      {
-        title: 'Use this number',
-        id: '_use_this_number',
-      },
-      {
-        title: 'Other number',
-        id: '_other_payment_number',
-      },
-    ],
-  });
+  try {
+    await whatsapp.sendSimpleButtons({
+      recipientPhone: userId,
+      message: replyText,
+      listOfButtons: [
+        {
+          title: '✅ Use This Number',
+          id: '_use_this_number',
+        },
+        {
+          title: '📱 Different Number',
+          id: '_other_payment_number',
+        },
+      ],
+    });
+    logger.debug('Payment number buttons sent successfully', { userId });
+  } catch (error) {
+    logger.error('Failed to send payment number buttons', { userId, error });
+    throw new ExternalAPIError(
+      'WhatsApp',
+      'Failed to send payment number buttons'
+    );
+  }
 };
 
 const ticketTypeButton = async (
