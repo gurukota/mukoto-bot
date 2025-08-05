@@ -39,149 +39,74 @@ import {
   UserType,
 } from 'types/index.js';
 import { sendCollectionMessage } from '../utils/collectionMessage.js';
-import { config } from '../config/env.js';
 import { logger } from '../utils/logger.js';
-import {
-  handleError,
-  AppError,
-  UnauthorizedError,
-  asyncHandler,
-} from '../utils/errorHandler.js';
-import {
-  validatePhoneNumber,
-  validateUUID,
-  normalizePhoneNumber,
-  sanitizeUserInput,
-} from '../utils/validation.js';
 
-export const handleVerification = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
+export const handleVerification = async (req: Request, res: Response) => {
+  try {
     const mode = req.query['hub.mode'];
     const token = req.query['hub.verify_token'];
     const challenge = req.query['hub.challenge'];
-
-    logger.info('Webhook verification attempt', {
-      mode,
-      token: token ? '***' : undefined,
-    });
 
     if (
       mode &&
       token &&
       mode === 'subscribe' &&
-      token === config.WA_VERIFY_TOKEN
+      token === process.env.WA_VERIFY_TOKEN
     ) {
-      logger.info('Webhook verification successful');
       res.status(200).send(challenge);
     } else {
-      logger.warn('Webhook verification failed', {
-        mode,
-        token: token ? '***' : undefined,
-      });
-      throw new UnauthorizedError('Invalid verification token');
+      res.sendStatus(403);
     }
-  }
-);
-
-async function handleTicketCheckIn(
-  userId: string,
-  qrCode: string
-): Promise<void> {
-  try {
-    const formattedUserId = normalizePhoneNumber(userId);
-    const user = await getUserByPhone(formattedUserId);
-
-    if (!user || !user.canApproveTickets) {
-      logger.warn('Unauthorized ticket check-in attempt', {
-        userId: formattedUserId,
-      });
-      return;
-    }
-
-    const checkTicket = await checkTicketByQRCode(qrCode);
-    if (!checkTicket) {
-      await sendMessage(userId, 'Invalid ticket QR code. Please try again.');
-      return;
-    }
-
-    let replyText: string;
-    if (!checkTicket.checkedIn) {
-      await ticketCheckIn(qrCode);
-      replyText = 'Ticket has been checked in successfully.';
-      logger.info('Ticket checked in successfully', {
-        qrCode,
-        userId: formattedUserId,
-      });
-    } else {
-      replyText =
-        'Ticket has already been checked in. Please purchase another ticket!';
-      logger.info('Attempted to check in already checked ticket', {
-        qrCode,
-        userId: formattedUserId,
-      });
-    }
-
-    await sendMessage(userId, replyText);
-    await setUserState(userId, 'menu');
   } catch (error) {
-    logger.error('Error during ticket check-in', { error, userId, qrCode });
-    await sendMessage(userId, 'Error checking in ticket. Please try again.');
+    logger.error('Error in handleVerification', { error });
+    res.sendStatus(500);
   }
-}
+};
 
-export const handleIncomingMessage = asyncHandler(
-  async (req: Request, res: Response): Promise<void> => {
+export const handleIncomingMessage = async (req: Request, res: Response) => {
+  try {
     const data = whatsapp.parseMessage(req.body);
+    let replyText = '';
 
-    if (!data?.isMessage || !data.message) {
-      logger.debug('Received non-message webhook');
-      res.sendStatus(200);
-      return;
-    }
-
-    const message = data.message;
-    const { from, type, text, button_reply, list_reply } = message;
-    const { phone: userId, name: userName } = from;
-    const userMessage = text?.body;
-    const buttonId = button_reply?.id;
-    const selectionId = list_reply?.id;
-
-    // Sanitize inputs
-    const sanitizedMessage = userMessage
-      ? sanitizeUserInput(userMessage)
-      : undefined;
-    const sanitizedUserName = userName ? sanitizeUserInput(userName) : 'User';
-
-    if (!sanitizedMessage && !buttonId && !selectionId) {
-      logger.debug('Ignoring message with no actionable content', { userId });
-      res.sendStatus(200);
-      return;
-    }
-
-    logger.info('Processing message', {
-      userId,
-      userName: sanitizedUserName,
-      type,
-      hasMessage: !!sanitizedMessage,
-      hasButton: !!buttonId,
-      hasSelection: !!selectionId,
-    });
-
-    try {
-      await setSession(userId, { userName: sanitizedUserName });
-
-      // Handle QR code ticket check-in
-      if (
-        sanitizedMessage &&
-        validate(sanitizedMessage) &&
-        version(sanitizedMessage) === 4
-      ) {
-        await handleTicketCheckIn(userId, sanitizedMessage);
+    if (data?.isMessage && data.message) {
+      const message = data.message;
+      const { from, type, text, button_reply, list_reply } = message;
+      const { phone: userId, name: userName } = from;
+      const userMessage = text?.body;
+      const buttonId = button_reply?.id;
+      const selectionId = list_reply?.id;
+      if (!userMessage && !buttonId && !selectionId) {
+        logger.debug('Ignoring non-user message');
         res.sendStatus(200);
         return;
       }
 
-      // Initialize user state if not present
+      await setSession(userId, { userName });
+
+      if (
+        typeof userMessage === 'string' &&
+        validate(userMessage) &&
+        version(userMessage) === 4
+      ) {
+        const formattedUserId = userId.replace(/^263/, '0');
+        const user = await getUserByPhone(formattedUserId);
+        if (user && user.canApproveTickets) {
+          const checkTicket = await checkTicketByQRCode(userMessage);
+          if (checkTicket) {
+            replyText = !checkTicket.checkedIn
+              ? 'Ticket has been checked in successfully.'
+              : 'Ticket has checked in already. Please purchase another ticket!';
+            if (!checkTicket.checkedIn) {
+              await ticketCheckIn(userMessage);
+            }
+          } else {
+            replyText = 'Invalid ticket QR code. Please try again.';
+          }
+          await sendMessage(userId, replyText);
+        }
+        await setUserState(userId, 'menu');
+      }
+
       if (!(await getUserState(userId))) {
         await setUserState(userId, 'menu');
       }
@@ -189,12 +114,9 @@ export const handleIncomingMessage = asyncHandler(
       const session = await getSession(userId);
       const userState = await getUserState(userId);
 
-      // Process main message flow based on user state
-      let replyText = '';
-
       switch (userState) {
         case 'menu':
-          await mainMenu(sanitizedUserName, userId);
+          await mainMenu(userName, userId);
           await setUserState(userId, 'choose_option');
           break;
 
@@ -210,15 +132,12 @@ export const handleIncomingMessage = asyncHandler(
                 await sendButtons(userId, replyText, findEventButtons);
                 await setUserState(userId, 'find_event');
                 break;
-
               case '_view_resend_ticket':
                 const tickets = await getTicketByPhone(userId);
                 await setSession(userId, { tickets });
-
                 if (tickets.length > 0) {
                   const processedEventIds = new Set<string>();
                   const events = [];
-
                   for (const ticket of tickets) {
                     if (!processedEventIds.has(ticket.eventId)) {
                       events.push({
@@ -229,31 +148,23 @@ export const handleIncomingMessage = asyncHandler(
                       processedEventIds.add(ticket.eventId);
                     }
                   }
-
-                  const headerText = '#Mukoto Events🚀';
-                  const bodyText =
-                    'Streamlined ticketing, straight to your chat: Mukoto makes events effortless.';
-                  const footerText = 'Powered by: Your Address Tech';
-                  const actionTitle = 'Select Event';
-
                   await sendRadioButtons(
                     events,
-                    headerText,
-                    bodyText,
-                    footerText,
-                    actionTitle,
+                    '#Mukoto Events🚀',
+                    'Select an event to get your ticket.',
+                    'Powered by: Your Address Tech',
+                    'Select Event',
                     userId,
                     'event'
                   );
                   await setUserState(userId, 'resend_ticket');
                 } else {
-                  replyText =
-                    'No tickets found. Please purchase a ticket first.';
+                  replyText = 'Ticket(s) not found. Please try again.';
                   await sendMessage(userId, replyText);
-                  await setUserState(userId, 'menu');
+                  await mainMenu(userName, userId);
+                  await setUserState(userId, 'choose_option');
                 }
                 break;
-
               case '_utilities':
                 replyText = 'Choose a utility option:';
                 const utilityButtons: SimpleButton[] = [
@@ -262,47 +173,439 @@ export const handleIncomingMessage = asyncHandler(
                 await sendButtons(userId, replyText, utilityButtons);
                 await setUserState(userId, 'utilities');
                 break;
-
               default:
                 replyText = 'Please choose an option from the menu.';
                 await sendMessage(userId, replyText);
-                await mainMenu(sanitizedUserName, userId);
+                await mainMenu(userName, userId);
                 await setUserState(userId, 'choose_option');
+                break;
             }
           } else {
             replyText = 'Please choose an option from the menu.';
             await sendMessage(userId, replyText);
-            await mainMenu(sanitizedUserName, userId);
+            await mainMenu(userName, userId);
             await setUserState(userId, 'choose_option');
           }
           break;
 
+        case 'resend_ticket':
+          if (type === 'radio_button_message' && selectionId) {
+            const tickets = session.tickets?.filter(
+              (ticket: TicketType) => ticket.eventId === selectionId
+            );
+            if (tickets && tickets.length > 0) {
+              for (const ticket of tickets) {
+                const generatedTicket = await generateTicket(ticket);
+                if (generatedTicket) {
+                  await sendDocument(
+                    generatedTicket.pdfName.toLowerCase(),
+                    generatedTicket.pdfUrl,
+                    userId
+                  );
+
+                  // Check if ticket delivery method is collection
+                  if (ticket.ticketDeliveryMethod === 'collection') {
+                    await sendCollectionMessage(userId, ticket.eventTitle);
+                  }
+                } else {
+                  replyText = 'Tickets not found. Please try again.';
+                  await sendMessage(userId, replyText);
+                }
+              }
+            } else {
+              replyText = 'Tickets not found. Please try again.';
+              await sendMessage(userId, replyText);
+            }
+          } else {
+            replyText = 'You have not selected any event. Please try again.';
+            await sendMessage(userId, replyText);
+          }
+          await mainMenu(userName, userId);
+          await setUserState(userId, 'choose_option');
+          break;
+
+        case 'find_event':
+          if (type === 'simple_button_message') {
+            if (buttonId === '_event_by_search') {
+              replyText =
+                'Please enter the name or type of event you are interested in:';
+              await sendMessage(userId, replyText);
+              await setUserState(userId, 'search_event');
+            } else {
+              const eventCategories: CategoryType[] = await getCategories();
+              if (eventCategories.length === 0) {
+                replyText =
+                  'No event categories found. Please try again later.';
+                await sendMessage(userId, replyText);
+                await mainMenu(userName, userId);
+                await setUserState(userId, 'choose_option');
+              } else {
+                await sendRadioButtons(
+                  eventCategories,
+                  '#Mukoto Events🚀',
+                  'Select a category to view events.',
+                  'Powered by: Your Address Tech',
+                  'Select Category',
+                  userId,
+                  'category'
+                );
+                await setUserState(userId, 'find_event_by_category');
+              }
+            }
+          } else {
+            replyText = 'Please choose an option from the menu.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+          }
+          break;
+
+        case 'search_event':
+          if (typeof userMessage === 'string') {
+            const events: EventType[] = await searchEvents(userMessage);
+            if (events.length === 0) {
+              replyText =
+                'No events found for your search. Would you like to try again?';
+              const fallbackButtons: SimpleButton[] = [
+                { title: 'Yes', id: '_find_event' },
+                { title: 'Main Menu', id: '_main_menu' },
+              ];
+              await sendButtons(userId, replyText, fallbackButtons);
+              await setUserState(userId, 'event_fallback');
+            } else {
+              await sendRadioButtons(
+                events,
+                '#Mukoto Events🚀',
+                'Here are the events we found.',
+                'Powered by: Your Address Tech',
+                'Select Event',
+                userId,
+                'event'
+              );
+              await setSession(userId, { events });
+              await setUserState(userId, 'show_event');
+            }
+          }
+          break;
+
+        case 'find_event_by_category':
+          if (type === 'radio_button_message' && selectionId) {
+            const events: EventType[] = await getEventsByCategory(selectionId);
+            if (events.length === 0) {
+              replyText =
+                'No events found for this category. Find another event?';
+              const fallbackButtons: SimpleButton[] = [
+                { title: 'Yes', id: '_find_event' },
+                { title: 'Main Menu', id: '_main_menu' },
+              ];
+              await sendButtons(userId, replyText, fallbackButtons);
+              await setUserState(userId, 'event_fallback');
+            } else {
+              await sendRadioButtons(
+                events,
+                '#Mukoto Events🚀',
+                'Here are the events in this category.',
+                'Powered by: Your Address Tech',
+                'Select Event',
+                userId,
+                'event'
+              );
+              await setSession(userId, { events });
+              await setUserState(userId, 'show_event');
+            }
+          }
+          break;
+
+        case 'show_event':
+          if (type === 'radio_button_message' && selectionId) {
+            const event = session.events?.find(
+              (e: EventType) => e.id === selectionId
+            );
+            if (event) {
+              const formattedDate = moment(event.start).format(
+                'dddd, MMMM Do YYYY, h:mm:ss a'
+              );
+              let text = `*${event.title.trim()}*\n`;
+              text += `${event.description?.trim()}\n`;
+              text += `*${formattedDate}*\n`;
+              text += `*${event.location}*`;
+              if (event.image) {
+                await sendImage(userId, event.image, text);
+                await new Promise(r => setTimeout(r, 2000));
+              }
+              await purchaseButtons(userId, selectionId);
+              await setSession(userId, { event });
+              await setUserState(userId, 'choosen_event_options');
+            } else {
+              replyText = 'Event not found. Please try again.';
+              await sendMessage(userId, replyText);
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            }
+          } else {
+            replyText = 'Select an event from the list. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'choosen_event_options':
+          if (type === 'simple_button_message') {
+            if (buttonId === '_purchase' && session.event) {
+              const ticketTypes: TicketTypeType[] = await getTicketTypes(
+                session.event.id
+              );
+              if (ticketTypes.length > 0) {
+                await sendRadioButtons(
+                  ticketTypes,
+                  '#Mukoto Events🚀',
+                  'Select a ticket type.',
+                  'Powered by: Your Address Tech',
+                  'Select Ticket Type',
+                  userId,
+                  'ticket_type'
+                );
+                await setUserState(userId, 'choose_ticket_type');
+                await setSession(userId, { ticketTypes });
+              } else {
+                replyText =
+                  'There are no tickets for this event. Please try again later.';
+                await sendMessage(userId, replyText);
+                await mainMenu(userName, userId);
+                await setUserState(userId, 'choose_option');
+              }
+            } else if (buttonId === '_find_event') {
+              replyText = 'Choose how you would like to find an event:';
+              const findEventButtons: SimpleButton[] = [
+                { title: 'Find by search', id: '_event_by_search' },
+                { title: 'Find by category', id: '_event_by_category' },
+              ];
+              await sendButtons(userId, replyText, findEventButtons);
+              await setUserState(userId, 'find_event');
+            } else if (buttonId === '_main_menu') {
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            }
+          } else {
+            replyText = 'Choose a valid option. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'choose_ticket_type':
+          if (type === 'radio_button_message' && selectionId) {
+            const ticketType = session.ticketTypes?.find(
+              (t: TicketTypeType) => t.id === selectionId
+            );
+            if (ticketType) {
+              await setSession(userId, { ticketType });
+
+              // Check if this is a free ticket (price = 0)
+              if (Number(ticketType.price) === 0) {
+                replyText = `You have selected ${ticketType.typeName}. Would you like to register for this event?`;
+                const freeTicketButtons: SimpleButton[] = [
+                  { title: 'Yes, Register', id: '_free_register' },
+                  { title: 'Cancel', id: '_cancel_registration' },
+                ];
+                await sendButtons(userId, replyText, freeTicketButtons);
+                await setUserState(userId, 'confirm_free_registration');
+              } else {
+                replyText = `You have selected ${ticketType.typeName}. How many tickets do you want to buy?`;
+                await sendMessage(userId, replyText);
+                await setUserState(userId, 'enter_ticket_quantity');
+              }
+            } else {
+              replyText = 'Please select a ticket type. Please try again.';
+              await sendMessage(userId, replyText);
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            }
+          } else {
+            replyText = 'Please select a ticket type. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'confirm_free_registration':
+          if (type === 'simple_button_message') {
+            if (buttonId === '_free_register') {
+              await processFreeRegistration(session, userId);
+            } else if (buttonId === '_cancel_registration') {
+              await sendMessage(userId, 'Registration cancelled.');
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            }
+          } else {
+            replyText = 'Please choose an option.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'enter_ticket_quantity':
+          const quantity = parseInt(String(userMessage));
+          if (isNaN(quantity) || quantity < 1 || quantity > 10) {
+            replyText =
+              quantity > 10
+                ? 'You can only purchase a maximum of 10 tickets. Please try again.'
+                : 'Enter a valid number of tickets.';
+            await sendMessage(userId, replyText);
+            await setUserState(userId, 'enter_ticket_quantity');
+          } else {
+            if (session.ticketType) {
+              const total = quantity * Number(session.ticketType.price);
+              replyText = `You have selected ${quantity} tickets of ${session.ticketType.typeName} type. The total cost is *${total} ${session.ticketType.currencyCode}*. *Charges may apply*. Please confirm payment method.`;
+              await paymentMethodButtons(userId, replyText);
+              await setSession(userId, { total, quantity });
+              await setUserState(userId, 'choose_payment_method');
+            }
+          }
+          break;
+
+        case 'choose_payment_method':
+          if (type === 'simple_button_message') {
+            const paymentMethod = buttonId?.substring(1); // remove '_'
+            await setSession(userId, { paymentMethod });
+            if (paymentMethod === 'web') {
+              const phoneNumber = userId.replace(/^263/, '0');
+              await setSession(userId, { phoneNumber });
+              await processPayment(session, userId);
+            } else {
+              replyText = 'Choose a payment number:';
+              await paymentNumberButtons(userId, replyText);
+              await setUserState(userId, 'choose_phone_number');
+            }
+          }
+          break;
+
+        case 'choose_phone_number':
+          if (buttonId === '_use_this_number') {
+            const phoneNumber = userId.replace(/^263/, '0');
+            await setSession(userId, { phoneNumber });
+            await processPayment(session, userId);
+          } else if (buttonId === '_other_payment_number') {
+            replyText =
+              'Please enter the desired transact number: for example *0771111111*';
+            await sendMessage(userId, replyText);
+            await setUserState(userId, 'other_phone_number');
+          }
+          break;
+
+        case 'other_phone_number':
+          if (typeof userMessage === 'string') {
+            await setSession(userId, { phoneNumber: userMessage });
+            await processPayment(session, userId);
+          }
+          break;
+
+        case 'event_fallback':
+          if (type === 'simple_button_message') {
+            if (buttonId === '_find_event') {
+              replyText =
+                'Please enter the name or type of event you are interested in:';
+              await sendMessage(userId, replyText);
+              await setUserState(userId, 'search_event');
+            } else if (buttonId === '_main_menu') {
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            }
+          } else {
+            replyText = 'Please choose an option from the menu.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'utilities':
+          if (type === 'simple_button_message') {
+            const tickets: TicketType[] = await getTicketByPhone(userId);
+
+            if (tickets.length === 0) {
+              replyText = 'You have no tickets to view event locations.';
+              await sendMessage(userId, replyText);
+              await mainMenu(userName, userId);
+              await setUserState(userId, 'choose_option');
+            } else {
+              const events = [];
+              const processedEventIds = new Set<string>();
+              for (const ticket of tickets) {
+                if (!processedEventIds.has(ticket.eventId)) {
+                  events.push({
+                    id: ticket.eventId,
+                    title: ticket.eventTitle,
+                    description: ticket.eventDescription,
+                  });
+                  processedEventIds.add(ticket.eventId);
+                }
+              }
+              await setSession(userId, { tickets });
+              await sendRadioButtons(
+                events,
+                '#Mukoto Events🚀',
+                'Select an event to view its location.',
+                'Powered by: Your Address Tech',
+                'Select Event',
+                userId,
+                'event'
+              );
+              await setUserState(userId, 'send_event_location');
+            }
+          } else {
+            replyText = 'Select a valid option. Please try again.';
+            await sendMessage(userId, replyText);
+            await mainMenu(userName, userId);
+            await setUserState(userId, 'choose_option');
+          }
+          break;
+
+        case 'send_event_location':
+          if (type === 'radio_button_message' && selectionId) {
+            const ticket = session.tickets?.find(
+              (t: TicketType) => t.eventId === selectionId
+            );
+            if (
+              ticket?.latitude &&
+              ticket?.longitude &&
+              ticket?.location &&
+              ticket?.address
+            ) {
+              await sendLocation(
+                userId,
+                parseFloat(ticket.latitude),
+                parseFloat(ticket.longitude),
+                ticket.location,
+                ticket.address
+              );
+            } else {
+              replyText = 'Event not found. Please try again.';
+              await sendMessage(userId, replyText);
+            }
+          }
+          await mainMenu(userName, userId);
+          await setUserState(userId, 'choose_option');
+          break;
+
+        case 'paynow':
+          // Silent state
+          break;
+
         default:
           logger.warn('Unhandled user state', { userState, userId });
-          await mainMenu(sanitizedUserName, userId);
+          await mainMenu(userName, userId);
           await setUserState(userId, 'choose_option');
       }
-
-      res.sendStatus(200);
-    } catch (error) {
-      logger.error('Error processing message', {
-        error: error instanceof Error ? error.message : error,
-        userId,
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-
-      // Send user-friendly error message
-      try {
-        await sendMessage(
-          userId,
-          'Sorry, something went wrong. Please try again or contact support.'
-        );
-      } catch (sendError) {
-        logger.error('Failed to send error message to user', { sendError });
-      }
-
-      handleError(error instanceof Error ? error : new Error(String(error)));
-      res.sendStatus(500);
+    } else {
+      logger.debug('Not a message');
     }
+    res.sendStatus(200);
+  } catch (error) {
+    logger.error('Error in handleIncomingMessage', { error });
+    res.sendStatus(500);
   }
-);
+};
