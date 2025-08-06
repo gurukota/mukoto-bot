@@ -40,6 +40,8 @@ import {
 import { sendCollectionMessage } from '../utils/collectionMessage.js';
 import { logger } from '../utils/logger.js';
 import { MessageTemplates } from '../utils/messages.js';
+import { conversationRecovery } from '../utils/conversationRecovery.js';
+import { handleConversationError } from '../utils/errorHandler.js';
 
 export const handleVerification = async (
   req: Request,
@@ -71,6 +73,7 @@ export const handleIncomingMessage = async (
   res: Response
 ): Promise<void> => {
   let userId: string | undefined;
+  let lastAction: string | undefined;
 
   try {
     const data = whatsapp.parseMessage(req.body);
@@ -122,6 +125,11 @@ export const handleIncomingMessage = async (
 
       const session = await getSession(userPhoneId);
       const userState = await getUserState(userPhoneId);
+
+      // Track last successful action for recovery
+      if (userState && userState !== 'menu' && userState !== 'choose_option') {
+        lastAction = `${userState}_${type}_${buttonId || selectionId || 'text'}`;
+      }
 
       switch (userState) {
         case 'menu':
@@ -615,8 +623,52 @@ export const handleIncomingMessage = async (
           await setUserState(userPhoneId, 'choose_option');
           break;
 
-        case 'paynow':
-          // Silent state
+        case 'payment_recovery':
+        case 'event_recovery':
+        case 'ticket_recovery':
+        case 'registration_recovery':
+        case 'general_recovery':
+        case 'service_recovery':
+        case 'error_recovery':
+        case 'human_help_offer':
+          if (type === 'simple_button_message' && buttonId) {
+            const handled = await conversationRecovery.handleRecoveryAction(
+              userPhoneId,
+              buttonId,
+              userState,
+              session
+            );
+            
+            if (!handled) {
+              // Fallback for unhandled recovery actions
+              if (buttonId === '_main_menu') {
+                await mainMenu(userName, userPhoneId);
+                await setUserState(userPhoneId, 'choose_option');
+              } else {
+                replyText = MessageTemplates.getInvalidOption();
+                await sendMessage(userPhoneId, replyText);
+              }
+            }
+          }
+          break;
+
+        case 'collecting_feedback':
+          if (typeof userMessage === 'string') {
+            // Log feedback for review
+            logger.info('User feedback collected', {
+              userId: userPhoneId,
+              feedback: userMessage,
+              timestamp: new Date().toISOString()
+            });
+            
+            await sendMessage(
+              userPhoneId,
+              "📧 *Thank you for your feedback!*\n\nYour message has been sent to our team. We really appreciate you taking the time to help us improve.\n\nIs there anything else I can help you with today?"
+            );
+            
+            await mainMenu(userName, userPhoneId);
+            await setUserState(userPhoneId, 'choose_option');
+          }
           break;
 
         default:
@@ -627,6 +679,14 @@ export const handleIncomingMessage = async (
           await mainMenu(userName, userPhoneId);
           await setUserState(userPhoneId, 'choose_option');
       }
+      
+      // Clear retry attempts on successful interaction
+      conversationRecovery.clearRetryAttempts(userPhoneId);
+      
+      // Update last successful state for recovery purposes
+      if (userState && userState !== 'menu' && !userState.includes('recovery') && !userState.includes('error')) {
+        await setSession(userPhoneId, { ...session, lastSuccessfulState: userState });
+      }
     } else {
       logger.debug('Not a message');
     }
@@ -634,16 +694,37 @@ export const handleIncomingMessage = async (
   } catch (error) {
     logger.error('Error in handleIncomingMessage', { error, userId });
 
-    // Send user-friendly error message
+    // Use conversation recovery system for better error handling
     try {
       if (userId) {
-        await sendMessage(userId, MessageTemplates.getGenericError());
+        const session = await getSession(userId);
+        const userState = await getUserState(userId);
+        
+        await handleConversationError(
+          error instanceof Error ? error : new Error(String(error)),
+          userId,
+          userState || 'unknown',
+          session,
+          lastAction
+        );
       }
-    } catch (sendError) {
-      logger.error('Failed to send error message to user', {
-        sendError,
+    } catch (recoveryError) {
+      logger.error('Recovery system failed, using fallback', {
+        recoveryError,
         userId,
       });
+      
+      // Ultimate fallback - send generic error message
+      try {
+        if (userId) {
+          await sendMessage(userId, MessageTemplates.getGenericError());
+        }
+      } catch (sendError) {
+        logger.error('Failed to send error message to user', {
+          sendError,
+          userId,
+        });
+      }
     }
 
     res.sendStatus(500);

@@ -142,6 +142,66 @@ export class MessageTemplates {
     return 'Return to main menu';
   }
 
+  // Context-aware error messages
+  static getPaymentError(context?: string): string {
+    const baseMessage = '💳 *Payment Error*\n\nThere was an issue processing your payment.';
+    
+    if (context === 'network') {
+      return `${baseMessage}\n\nThis seems to be a network connectivity issue. Please check your connection and try again.`;
+    }
+    if (context === 'declined') {
+      return `${baseMessage}\n\nYour payment was declined. Please try a different payment method or contact your bank.`;
+    }
+    if (context === 'timeout') {
+      return `${baseMessage}\n\nThe payment request timed out. Don't worry, you haven't been charged. Would you like to try again?`;
+    }
+    
+    return `${baseMessage}\n\nDon't worry, you haven't been charged. Let me help you complete your purchase.`;
+  }
+
+  static getSearchError(searchTerm?: string): string {
+    const baseMessage = '🔍 *Search Issue*\n\n';
+    
+    if (searchTerm) {
+      return `${baseMessage}I couldn't find events matching "${searchTerm}". Let me help you find what you're looking for with different search terms or browse our categories.`;
+    }
+    
+    return `${baseMessage}I'm having trouble with the search right now. Would you like to browse events by category instead?`;
+  }
+
+  static getEventLoadError(): string {
+    return '🎪 *Event Loading Error*\n\nI\'m having trouble loading event details right now. This might be a temporary issue. Would you like to try viewing another event or try again in a moment?';
+  }
+
+  static getTicketError(context?: string): string {
+    const baseMessage = '🎫 *Ticket Issue*\n\n';
+    
+    if (context === 'not_found') {
+      return `${baseMessage}I couldn't find your tickets. This might be because:\n• The tickets are still being processed\n• There was an error in your purchase\n• You're using a different phone number\n\nLet me help you locate your tickets.`;
+    }
+    if (context === 'generation') {
+      return `${baseMessage}There was an issue generating your ticket. Don't worry, your purchase is secure. Let me try to resend your ticket.`;
+    }
+    
+    return `${baseMessage}I encountered an issue with your ticket request. Let me help you resolve this.`;
+  }
+
+  static getServiceUnavailableError(serviceName?: string): string {
+    const service = serviceName || 'one of our services';
+    return `⚠️ *Service Temporarily Unavailable*\n\n${service} is currently experiencing issues. Our team is working to resolve this quickly.\n\nYou can:\n• Try again in a few minutes\n• Save your progress and return later\n• Get notified when the service is restored`;
+  }
+
+  static getRecoveryHelpMessage(attemptCount: number): string {
+    if (attemptCount === 1) {
+      return "🤔 *Let me help you*\n\nI noticed you might be having some trouble. What would you like to do?";
+    }
+    if (attemptCount === 2) {
+      return "😅 *Still having trouble?*\n\nNo worries! Let me try a different approach to help you.";
+    }
+    
+    return "🆘 *I'm here to help*\n\nI see you've been having some difficulties. Would you like me to connect you with a human helper, or shall we try something different?";
+  }
+
   // Success messages
   static getRegistrationSuccess(eventTitle: string): string {
     return `🎉 *Registration Successful!*\n\nYou've been successfully registered for:\n*${eventTitle}*\n\nYour ticket will be sent to you shortly. See you at the event!`;

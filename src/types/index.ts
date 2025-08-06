@@ -88,6 +88,12 @@ export type SessionType = {
   total: number;
   quantity: number;
   paymentMethod: string;
+
+  // Recovery and error handling
+  lastSuccessfulState?: string;
+  recoveryReason?: string;
+  errorHistory?: string[];
+  resetReason?: string;
 };
 
 export type UserType = {

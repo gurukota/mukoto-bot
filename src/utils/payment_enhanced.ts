@@ -15,6 +15,8 @@ import { sendCollectionMessage } from './collectionMessage.js';
 import { MessageTemplates } from './messages.js';
 import { logger } from './logger.js';
 import { config } from '../config/env.js';
+import { safePaymentOperation, safeApiCall, safeSendMessage } from './safeOperations.js';
+import { PaymentError, NetworkError } from './errorHandler.js';
 
 dotenv.config();
 
@@ -51,19 +53,15 @@ export const processPayment = async (
   session: SessionType,
   userId: string
 ): Promise<void> => {
-  try {
-    // Validate required session data
-    if (!session.event || !session.ticketType || !session.total) {
-      logger.error('Missing required payment data', { userId, session });
-      await sendMessage(
-        userId,
-        '❌ *Payment Error*\n\nSome payment information is missing. Please start your purchase again.'
-      );
-      await mainMenu(session.userName || '', userId);
-      await setUserState(userId, 'choose_option');
-      return;
-    }
+  // Validate required session data first
+  if (!session.event || !session.ticketType || !session.total) {
+    logger.error('Missing required payment data', { userId, session });
+    throw new PaymentError('Missing payment information. Please start your purchase again.');
+  }
 
+  const currentUserState = await getUserState(userId) || 'payment';
+
+  await safePaymentOperation(async () => {
     const phone = session.phoneNumber!;
     const username = session.userName || 'Guest';
     const paymentMethod = session.paymentMethod;
@@ -71,34 +69,34 @@ export const processPayment = async (
     const price = parseInt(String(session.total));
     const email = 'purchases@mukoto.app';
 
-    // Send payment initiation message
-    await sendMessage(
+    // Send payment initiation message with error handling
+    const messageSent = await safeSendMessage(
       userId,
       `💳 *Initiating Payment*\n\n🎫 Event: ${eventName}\n💰 Amount: ${price} USD\n📱 Method: ${paymentMethod?.toUpperCase()}\n\nPlease wait while we process your payment...`
     );
 
-    // Create payment
+    if (!messageSent) {
+      logger.warn('Failed to send payment initiation message', { userId });
+    }
+
+    // Create payment with error handling
     const payment = paynow.createPayment(username, email);
     payment.add(eventName, price);
 
     let response: PaymentResponse;
-    
-    if (paymentMethod === 'ecocash' || paymentMethod === 'innbucks') {
-      response = await paynow.sendMobile(payment, phone, paymentMethod);
-    } else {
-      response = await paynow.send(payment);
+    try {
+      if (paymentMethod === 'ecocash' || paymentMethod === 'innbucks') {
+        response = await paynow.sendMobile(payment, phone, paymentMethod);
+      } else {
+        response = await paynow.send(payment);
+      }
+    } catch (error) {
+      logger.error('Paynow API error', { error, userId, paymentMethod });
+      throw new PaymentError('Payment service is currently unavailable. Please try again later.');
     }
 
     await handlePaymentResponse(response, session, userId, paymentMethod);
-  } catch (error) {
-    logger.error('Payment processing error', { error, userId });
-    await sendMessage(
-      userId,
-      '❌ *Payment Error*\n\nSorry, we encountered an issue processing your payment. Please try again or contact support@mukoto.app.'
-    );
-    await mainMenu(session.userName || '', userId);
-    await setUserState(userId, 'choose_option');
-  }
+  }, userId, currentUserState, session);
 };
 
 const handlePaymentResponse = async (
@@ -109,13 +107,7 @@ const handlePaymentResponse = async (
 ): Promise<void> => {
   if (!response.success) {
     logger.error('Payment initialization failed', { userId, paymentMethod });
-    await sendMessage(
-      userId,
-      '❌ *Payment Failed*\n\nUnable to initialize payment. Please try again or contact support@mukoto.app.'
-    );
-    await mainMenu(session.userName || '', userId);
-    await setUserState(userId, 'choose_option');
-    return;
+    throw new PaymentError('Unable to initialize payment. Please try again or contact support@mukoto.app.');
   }
 
   // Handle different payment methods
@@ -132,13 +124,7 @@ const handlePaymentResponse = async (
   const pollUrl = response.pollUrl;
   if (!pollUrl) {
     logger.error('No poll URL provided', { userId, paymentMethod });
-    await sendMessage(
-      userId,
-      '❌ *Payment Error*\n\nPayment service error. Please try again or contact support@mukoto.app.'
-    );
-    await mainMenu(session.userName || '', userId);
-    await setUserState(userId, 'choose_option');
-    return;
+    throw new PaymentError('Payment service error. Please try again or contact support@mukoto.app.');
   }
 
   const transaction = await pollTransactionWithRetries(pollUrl, paymentMethod);
@@ -195,10 +181,7 @@ const handleInnbucksPayment = async (
       deepLink
     );
   } else {
-    await sendMessage(
-      userId,
-      '❌ *InnBucks Error*\n\nInnBucks payment information not available. Please try again or contact support@mukoto.app.'
-    );
+    throw new PaymentError('InnBucks payment information not available');
   }
 };
 
@@ -231,10 +214,7 @@ const handleWebPayment = async (
       response.redirectUrl
     );
   } else {
-    await sendMessage(
-      userId,
-      '❌ *Web Payment Error*\n\nWeb payment URL not available. Please try again or contact support@mukoto.app.'
-    );
+    throw new PaymentError('Web payment URL not available');
   }
 };
 
@@ -268,7 +248,7 @@ const pollTransactionWithRetries = async (
       logger.error('Error polling transaction', { error, pollUrl, retries });
       
       if (retries === maxRetries - 1) {
-        throw new Error('Payment status check timed out');
+        throw new NetworkError('Payment status check timed out');
       }
       
       retries++;

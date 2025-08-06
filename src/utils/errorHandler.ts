@@ -1,22 +1,49 @@
 import { Response } from 'express';
 import { logger } from './logger.js';
+import { conversationRecovery } from './conversationRecovery.js';
 
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly context?: string;
 
-  constructor(message: string, statusCode = 500, isOperational = true) {
+  constructor(message: string, statusCode = 500, isOperational = true, context?: string) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.context = context;
 
     Error.captureStackTrace(this, this.constructor);
   }
 }
 
+export class PaymentError extends AppError {
+  constructor(message: string, context?: string) {
+    super(message, 400, true, context);
+  }
+}
+
 export class ValidationError extends AppError {
-  constructor(message: string) {
-    super(message, 400);
+  constructor(message: string, context?: string) {
+    super(message, 400, true, context);
+  }
+}
+
+export class EventNotFoundError extends AppError {
+  constructor(eventId?: string) {
+    super(eventId ? `Event ${eventId} not found` : 'Event not found', 404);
+  }
+}
+
+export class TicketError extends AppError {
+  constructor(message: string, context?: string) {
+    super(message, 400, true, context);
+  }
+}
+
+export class NetworkError extends AppError {
+  constructor(message?: string) {
+    super(message || 'Network connectivity issue', 503, true, 'network');
   }
 }
 
@@ -42,6 +69,7 @@ export function handleError(error: Error, res?: Response): void {
   if (error instanceof AppError) {
     logger.error(`App Error: ${error.message}`, {
       statusCode: error.statusCode,
+      context: error.context,
       stack: error.stack,
     });
 
@@ -49,6 +77,7 @@ export function handleError(error: Error, res?: Response): void {
       res.status(error.statusCode).json({
         error: error.message,
         statusCode: error.statusCode,
+        context: error.context,
       });
     }
   } else {
@@ -64,6 +93,32 @@ export function handleError(error: Error, res?: Response): void {
       });
     }
   }
+}
+
+// Enhanced error handler for WhatsApp conversations
+export async function handleConversationError(
+  error: Error,
+  userId: string,
+  userState: string,
+  session: any,
+  lastAction?: string
+): Promise<void> {
+  logger.error('Conversation error occurred', {
+    userId,
+    userState,
+    lastAction,
+    error: error.message,
+    errorType: error.constructor.name,
+  });
+
+  // Use conversation recovery system for WhatsApp errors
+  await conversationRecovery.handleError(
+    userId,
+    error,
+    userState,
+    session,
+    lastAction
+  );
 }
 
 export function asyncHandler<T extends any[], R>(
